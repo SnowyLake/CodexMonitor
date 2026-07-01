@@ -14,15 +14,6 @@
 
 `CodexMonitor` 是一个 C#/.NET Windows 托盘应用, 用于读取 Codex Desktop 写入的 `~/.codex/sessions/**/*.jsonl` 中的 `token_count` 事件, 并通过本地 HTTP 服务向 LiteMonitor 插件提供 Codex 额度显示数据.
 
-当前工程只保留 C# 实现, 不包含 Python bridge 或 legacy PowerShell 启动脚本.
-
-## 语言与文风
-
-- 常规对话和 Markdown 文档使用中文文字和英文标点.
-- C# 代码, 代码注释, XML summary, 项目文件, JSON 字段, 命令和配置使用英文.
-- 文档中的路径, 命令, 类型名, 字段名和文件名使用反引号.
-- 不要在正式代码, 配置, commit message 或项目文档正文中加入角色口癖或颜文字.
-
 ## 目录结构
 
 - `CodexMonitor.Core`: 额度采集, HTTP 服务, 设置存储, LiteMonitor 定位, 插件安装, Windows 自启动管理.
@@ -44,10 +35,6 @@
 ## 开发规则
 
 - 修改 C# 代码时, namespace 必须与项目文件夹名对齐, 即 `CodexMonitor.Core`, `CodexMonitor.App`, `CodexMonitor.Tests`.
-- 新增或修改 C# 方法时, 方法声明上方必须有一句简洁英文 XML summary.
-- 私有字段使用 `m_` 前缀, 私有常量使用 `k_` 前缀, 私有静态字段使用 `s_` 前缀.
-- 保持现有文件的成员顺序, 缩进, 命名和局部抽象风格.
-- 不要重新引入 Python bridge, legacy PowerShell 启动脚本, 或旧 `CodexUsage*` 命名.
 - LiteMonitor 插件文件名应保持为 `LiteMonitorPlugin/CodexMonitor.json`.
 - 如果修改内置插件 JSON, 同步检查 `CodexMonitor.Core/LiteMonitorPluginInstaller.cs` 中的 `PluginJson`.
 
@@ -68,7 +55,7 @@ dotnet run --project .\CodexMonitor.Tests\CodexMonitor.Tests.csproj
 发布托盘应用:
 
 ```powershell
-dotnet publish .\CodexMonitor.App\CodexMonitor.App.csproj -c Release -r win-x64 -p:PublishSingleFile=true -p:SelfContained=true -o .\Builds\Release\CodexMonitor.App\publish\win-x64
+dotnet publish .\CodexMonitor.App\CodexMonitor.App.csproj -c Release -f net9.0-windows -r win-x64 -p:PublishSingleFile=true -p:SelfContained=false -o "..\Builds\Release\Publish\win-x64"
 ```
 
 ## 注意事项

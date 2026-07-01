@@ -47,13 +47,13 @@
 发布托盘版 exe:
 
 ```powershell
-dotnet publish .\CodexMonitor.App\CodexMonitor.App.csproj -c Release -r win-x64 -p:PublishSingleFile=true -p:SelfContained=true -o .\Builds\Release\CodexMonitor.App\publish\win-x64
+dotnet publish .\CodexMonitor.App\CodexMonitor.App.csproj -c Release -f net9.0-windows -r win-x64 -p:PublishSingleFile=true -p:SelfContained=false -o "..\Builds\Release\Publish\win-x64"
 ```
 
 运行发布后的文件:
 
 ```text
-Builds/Release/CodexMonitor.App/publish/win-x64/CodexMonitor.App.exe
+Builds/Release/Publish/win-x64/CodexMonitor.App.exe
 ```
 
 首次运行会打开设置窗口. 设置窗口中可以自动检测 LiteMonitor 路径, 安装插件配置, 并按需启用 `Start with Windows`.
