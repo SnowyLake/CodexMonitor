@@ -2,11 +2,6 @@ namespace CodexMonitor.Core;
 
 public static class LiteMonitorLocator
 {
-    private static readonly string[] s_FixedDirectories =
-    [
-        @"D:\Tools\LiteMonitor_v1.3.6-win-x64",
-    ];
-
     /// <summary>
     /// Returns true when a directory looks like a LiteMonitor installation.
     /// </summary>
@@ -46,17 +41,7 @@ public static class LiteMonitorLocator
             yield return savedDirectory;
         }
 
-        foreach (string directory in s_FixedDirectories)
-        {
-            yield return directory;
-        }
-
-        foreach (string directory in EnumerateToolDirectories())
-        {
-            yield return directory;
-        }
-
-        foreach (string directory in EnumerateProgramRoots())
+        foreach (string directory in EnumerateSearchRoots())
         {
             foreach (string match in FindLiteMonitorExe(directory))
             {
@@ -66,37 +51,30 @@ public static class LiteMonitorLocator
     }
 
     /// <summary>
-    /// Enumerates LiteMonitor-like directories below D:\Tools.
+    /// Enumerates local drive roots that can be searched.
     /// </summary>
-    private static IEnumerable<string> EnumerateToolDirectories()
+    private static IEnumerable<string> EnumerateSearchRoots()
     {
-        const string toolsRoot = @"D:\Tools";
-        if (!Directory.Exists(toolsRoot))
+        foreach (DriveInfo drive in DriveInfo.GetDrives())
         {
-            yield break;
-        }
+            bool canSearch;
+            try
+            {
+                canSearch = (drive.DriveType == DriveType.Fixed || drive.DriveType == DriveType.Removable) && drive.IsReady;
+            }
+            catch (IOException)
+            {
+                canSearch = false;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                canSearch = false;
+            }
 
-        foreach (string directory in Directory.EnumerateDirectories(toolsRoot, "LiteMonitor*"))
-        {
-            yield return directory;
-        }
-    }
-
-    /// <summary>
-    /// Enumerates roots that may contain application installs.
-    /// </summary>
-    private static IEnumerable<string> EnumerateProgramRoots()
-    {
-        string[] roots =
-        [
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
-            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
-        ];
-
-        foreach (string root in roots.Where(root => !string.IsNullOrWhiteSpace(root) && Directory.Exists(root)))
-        {
-            yield return root;
+            if (canSearch)
+            {
+                yield return drive.RootDirectory.FullName;
+            }
         }
     }
 
@@ -112,9 +90,45 @@ public static class LiteMonitorLocator
             MatchCasing = MatchCasing.CaseInsensitive,
         };
 
-        foreach (string file in Directory.EnumerateFiles(root, "LiteMonitor.exe", options).Take(3))
+        IEnumerator<string> files;
+        try
         {
-            yield return file;
+            files = Directory.EnumerateFiles(root, "LiteMonitor.exe", options).Take(3).GetEnumerator();
+        }
+        catch (IOException)
+        {
+            yield break;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            yield break;
+        }
+
+        using (files)
+        {
+            while (true)
+            {
+                string file;
+                try
+                {
+                    if (!files.MoveNext())
+                    {
+                        yield break;
+                    }
+
+                    file = files.Current;
+                }
+                catch (IOException)
+                {
+                    yield break;
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    yield break;
+                }
+
+                yield return file;
+            }
         }
     }
 }
