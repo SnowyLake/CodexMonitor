@@ -65,6 +65,8 @@ http://127.0.0.1:17890/codex-usage
 .\scripts\start_bridge.ps1
 ```
 
+PowerShell 辅助脚本默认会在结束时等待 Enter, 方便双击运行时查看输出. 自动化调用时可以追加 `-NoPause`.
+
 ## LiteMonitor 插件
 
 插件文件位于:
