@@ -13,16 +13,30 @@ function Wait-BeforeExit {
     }
 }
 
+function Resolve-Python {
+    if ($Python -ne "python") {
+        return $Python
+    }
+
+    $bundledPython = Join-Path $env:USERPROFILE ".cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"
+    if (Test-Path $bundledPython) {
+        return $bundledPython
+    }
+
+    return $Python
+}
+
 try {
     $repoRoot = Split-Path -Parent $PSScriptRoot
     $scriptPath = Join-Path $repoRoot "src\codex_usage_bridge.py"
+    $pythonPath = Resolve-Python
 
     $arguments = @($scriptPath, "--port", $Port)
     if ($CodexDir -ne "") {
         $arguments += @("--codex-dir", $CodexDir)
     }
 
-    & $Python @arguments
+    & $pythonPath @arguments
     if ($LASTEXITCODE -ne 0) {
         throw "Bridge exited with code $LASTEXITCODE"
     }

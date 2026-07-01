@@ -4,7 +4,7 @@
     "name": "Codex 使用量",
     "version": "1.0.0",
     "author": "SnowyLake",
-    "description": "显示 OpenAI Codex 5 小时额度, 一周额度, 今日支出, 30 天支出和历史总计"
+    "description": "显示 OpenAI Codex 5 小时额度和一周额度的剩余百分比与重置时间"
   },
   "inputs": [
     {
@@ -26,60 +26,25 @@
         "method": "GET",
         "response_format": "json",
         "extract": {
-          "limits_display": "display.limits",
-          "cost_today_display": "display.cost_today",
-          "cost_total_display": "display.cost_total",
-          "summary_display": "display.summary",
-          "five_hour_percent": "limits.five_hour.used_percent",
-          "weekly_percent": "limits.weekly.used_percent"
-        },
-        "process": [
-          {
-            "var": "limit_color",
-            "source": "five_hour_percent",
-            "function": "threshold_switch",
-            "value_map": {
-              "0": "0",
-              "70": "1",
-              "90": "2"
-            }
-          },
-          {
-            "var": "weekly_color",
-            "source": "weekly_percent",
-            "function": "threshold_switch",
-            "value_map": {
-              "0": "0",
-              "70": "1",
-              "90": "2"
-            }
-          }
-        ]
+          "codex_5h_display": "display.codex_5h",
+          "codex_weekly_display": "display.codex_weekly"
+        }
       }
     ]
   },
   "outputs": [
     {
-      "key": "limits",
-      "label": "Codex",
-      "short_label": "Cx",
-      "format_val": "{{limits_display}}",
-      "color": "{{limit_color}}",
+      "key": "codex_5h",
+      "label": "Codex 5h",
+      "short_label": "Codex 5h",
+      "format_val": "{{codex_5h_display}}",
       "unit": ""
     },
     {
-      "key": "today_cost",
-      "label": "Codex",
-      "short_label": "$D",
-      "format_val": "{{cost_today_display}}",
-      "unit": ""
-    },
-    {
-      "key": "total_cost",
-      "label": "Codex",
-      "short_label": "$T",
-      "format_val": "{{cost_total_display}}",
-      "color": "{{weekly_color}}",
+      "key": "codex_weekly",
+      "label": "Codex Weekly",
+      "short_label": "Codex Weekly",
+      "format_val": "{{codex_weekly_display}}",
       "unit": ""
     }
   ]

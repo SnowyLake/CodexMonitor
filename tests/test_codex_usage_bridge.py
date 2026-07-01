@@ -4,7 +4,7 @@ import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from src.codex_usage_bridge import Pricing, collect_codex_usage
+from src.codex_usage_bridge import collect_codex_usage
 
 
 class CodexUsageBridgeTests(unittest.TestCase):
@@ -53,21 +53,25 @@ class CodexUsageBridgeTests(unittest.TestCase):
         }
         path.write_text(json.dumps(event), encoding="utf-8")
 
-        data = collect_codex_usage(root, Pricing(2.5, 1.25, 10.0))
+        data = collect_codex_usage(root)
 
         self.assertTrue(data["available"])
         self.assertEqual(data["limits"]["five_hour"]["used_percent"], 12)
+        self.assertEqual(data["limits"]["five_hour"]["remaining_percent"], 88)
         self.assertEqual(data["limits"]["weekly"]["used_percent"], 34)
+        self.assertEqual(data["limits"]["weekly"]["remaining_percent"], 66)
         self.assertEqual(data["plan_type"], "plus")
-        self.assertGreater(data["cost"]["today"], 0)
-        self.assertIn("5h 12%", data["display"]["limits"])
+        self.assertRegex(data["display"]["codex_5h"], r"^88%-\d{2}:\d{2}$")
+        self.assertRegex(data["display"]["codex_weekly"], r"^66%-\d{2}-\d{2}$")
 
     def test_empty_response_when_no_sessions_exist(self):
         root = self.work_root / "empty_response"
         root.mkdir()
-        data = collect_codex_usage(root, Pricing(2.5, 1.25, 10.0))
+        data = collect_codex_usage(root)
 
         self.assertFalse(data["available"])
+        self.assertEqual(data["display"]["codex_5h"], "unavailable")
+        self.assertEqual(data["display"]["codex_weekly"], "unavailable")
         self.assertEqual(data["display"]["summary"], "Codex unavailable")
 
 

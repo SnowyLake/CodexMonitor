@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
-from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -13,57 +11,6 @@ from urllib.parse import urlparse
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 17890
-
-
-@dataclass(frozen=True)
-class Pricing:
-    input_usd_per_m: float
-    cached_input_usd_per_m: float
-    output_usd_per_m: float
-
-    @classmethod
-    def from_env(cls) -> "Pricing":
-        return cls(
-            input_usd_per_m=_read_float_env("CODEX_INPUT_USD_PER_M", 2.50),
-            cached_input_usd_per_m=_read_float_env("CODEX_CACHED_INPUT_USD_PER_M", 1.25),
-            output_usd_per_m=_read_float_env("CODEX_OUTPUT_USD_PER_M", 10.00),
-        )
-
-
-@dataclass
-class CostBucket:
-    input_tokens: int = 0
-    cached_input_tokens: int = 0
-    output_tokens: int = 0
-
-    def add_usage(self, usage: dict[str, Any]) -> None:
-        input_tokens = _safe_int(usage.get("input_tokens"))
-        cached_input_tokens = _safe_int(usage.get("cached_input_tokens"))
-        output_tokens = _safe_int(usage.get("output_tokens"))
-        self.input_tokens += max(0, input_tokens - cached_input_tokens)
-        self.cached_input_tokens += cached_input_tokens
-        self.output_tokens += output_tokens
-
-    def cost_usd(self, pricing: Pricing) -> float:
-        value = (
-            self.input_tokens * pricing.input_usd_per_m
-            + self.cached_input_tokens * pricing.cached_input_usd_per_m
-            + self.output_tokens * pricing.output_usd_per_m
-        ) / 1_000_000
-        return round(value, 4)
-
-    def total_tokens(self) -> int:
-        return self.input_tokens + self.cached_input_tokens + self.output_tokens
-
-
-def _read_float_env(name: str, default: float) -> float:
-    raw = os.environ.get(name)
-    if not raw:
-        return default
-    try:
-        return float(raw)
-    except ValueError:
-        return default
 
 
 def _safe_int(value: Any, default: int = 0) -> int:
@@ -93,18 +40,22 @@ def _parse_event_timestamp(raw: Any, fallback: datetime) -> datetime:
         return fallback
 
 
-def _format_reset_in(epoch_seconds: Any, now: datetime) -> str:
+def _format_reset_clock(epoch_seconds: Any, now: datetime) -> str:
+    epoch = _safe_int(epoch_seconds, 0)
+    if epoch <= 0:
+        return "unknown"
+    return datetime.fromtimestamp(epoch, tz=now.tzinfo).strftime("%H:%M")
+
+
+def _format_weekly_reset_label(epoch_seconds: Any, now: datetime) -> str:
     epoch = _safe_int(epoch_seconds, 0)
     if epoch <= 0:
         return "unknown"
     reset_at = datetime.fromtimestamp(epoch, tz=now.tzinfo)
-    seconds = max(0, int((reset_at - now).total_seconds()))
-    minutes = seconds // 60
-    days, rem_minutes = divmod(minutes, 60 * 24)
-    hours, mins = divmod(rem_minutes, 60)
-    if days > 0:
-        return f"{days}d {hours}h"
-    return f"{hours}h {mins:02d}m"
+    seconds_until_reset = max(0, int((reset_at - now).total_seconds()))
+    if seconds_until_reset < 24 * 60 * 60:
+        return reset_at.strftime("%H:%M")
+    return reset_at.strftime("%m-%d")
 
 
 def _format_reset_local(epoch_seconds: Any, now: datetime) -> str:
@@ -112,12 +63,6 @@ def _format_reset_local(epoch_seconds: Any, now: datetime) -> str:
     if epoch <= 0:
         return ""
     return datetime.fromtimestamp(epoch, tz=now.tzinfo).strftime("%Y-%m-%d %H:%M:%S %z")
-
-
-def _format_usd(value: float) -> str:
-    if value < 0.01 and value > 0:
-        return f"${value:.4f}"
-    return f"${value:.2f}"
 
 
 def _iter_jsonl_files(codex_dir: Path) -> list[Path]:
@@ -149,30 +94,26 @@ def _iter_token_count_events(path: Path) -> list[tuple[datetime, dict[str, Any]]
 def _build_limit(name: str, data: dict[str, Any] | None, now: datetime) -> dict[str, Any]:
     data = data or {}
     used_percent = int(round(_safe_float(data.get("used_percent"))))
+    used_percent = max(0, min(100, used_percent))
     resets_at = _safe_int(data.get("resets_at"), 0)
     return {
         "name": name,
-        "used_percent": max(0, min(100, used_percent)),
+        "used_percent": used_percent,
+        "remaining_percent": 100 - used_percent,
         "window_minutes": _safe_int(data.get("window_minutes")),
         "resets_at": resets_at,
         "reset_at_local": _format_reset_local(resets_at, now),
-        "reset_in": _format_reset_in(resets_at, now),
+        "reset_time": _format_reset_clock(resets_at, now),
     }
 
 
-def collect_codex_usage(codex_dir: Path, pricing: Pricing | None = None) -> dict[str, Any]:
-    pricing = pricing or Pricing.from_env()
+def collect_codex_usage(codex_dir: Path) -> dict[str, Any]:
     now = _local_now()
-    today = now.date()
-    thirty_days_ago = now - timedelta(days=30)
 
     files = _iter_jsonl_files(codex_dir)
     if not files:
         return _empty_response(codex_dir, now, "No Codex session JSONL files found")
 
-    today_cost = CostBucket()
-    last_30_days_cost = CostBucket()
-    historical_cost = CostBucket()
     latest_event: tuple[datetime, dict[str, Any], Path] | None = None
     scanned_events = 0
 
@@ -185,14 +126,6 @@ def collect_codex_usage(codex_dir: Path, pricing: Pricing | None = None) -> dict
             scanned_events += 1
             if latest_event is None or event_time > latest_event[0]:
                 latest_event = (event_time, payload, path)
-            usage = payload.get("info", {}).get("last_token_usage", {})
-            if not isinstance(usage, dict):
-                continue
-            historical_cost.add_usage(usage)
-            if event_time.date() == today:
-                today_cost.add_usage(usage)
-            if event_time >= thirty_days_ago:
-                last_30_days_cost.add_usage(usage)
 
     if latest_event is None:
         return _empty_response(codex_dir, now, "No token_count events found")
@@ -201,17 +134,10 @@ def collect_codex_usage(codex_dir: Path, pricing: Pricing | None = None) -> dict
     rate_limits = latest_payload.get("rate_limits") or {}
     primary = _build_limit("five_hour", rate_limits.get("primary"), now)
     secondary = _build_limit("weekly", rate_limits.get("secondary"), now)
+    secondary["reset_label"] = _format_weekly_reset_label(secondary["resets_at"], now)
 
-    today_usd = today_cost.cost_usd(pricing)
-    last_30_days_usd = last_30_days_cost.cost_usd(pricing)
-    historical_usd = historical_cost.cost_usd(pricing)
-
-    limits_display = (
-        f"5h {primary['used_percent']}% {primary['reset_in']}"
-        f" | W {secondary['used_percent']}% {secondary['reset_in']}"
-    )
-    cost_today_display = f"{_format_usd(today_usd)} today"
-    cost_total_display = f"30d {_format_usd(last_30_days_usd)} | All {_format_usd(historical_usd)}"
+    codex_5h_display = f"{primary['remaining_percent']}%-{primary['reset_time']}"
+    codex_weekly_display = f"{secondary['remaining_percent']}%-{secondary['reset_label']}"
 
     return {
         "available": True,
@@ -229,27 +155,10 @@ def collect_codex_usage(codex_dir: Path, pricing: Pricing | None = None) -> dict
             "five_hour": primary,
             "weekly": secondary,
         },
-        "cost": {
-            "currency": "USD",
-            "today": today_usd,
-            "last_30_days": last_30_days_usd,
-            "historical": historical_usd,
-            "tokens": {
-                "today": today_cost.total_tokens(),
-                "last_30_days": last_30_days_cost.total_tokens(),
-                "historical": historical_cost.total_tokens(),
-            },
-            "pricing_per_million": {
-                "input": pricing.input_usd_per_m,
-                "cached_input": pricing.cached_input_usd_per_m,
-                "output": pricing.output_usd_per_m,
-            },
-        },
         "display": {
-            "limits": limits_display,
-            "cost_today": cost_today_display,
-            "cost_total": cost_total_display,
-            "summary": f"{limits_display} | {_format_usd(today_usd)} / {_format_usd(last_30_days_usd)} / {_format_usd(historical_usd)}",
+            "codex_5h": codex_5h_display,
+            "codex_weekly": codex_weekly_display,
+            "summary": f"Codex 5h: {codex_5h_display} | Codex Weekly: {codex_weekly_display}",
         },
     }
 
@@ -266,21 +175,9 @@ def _empty_response(codex_dir: Path, now: datetime, error: str) -> dict[str, Any
             "five_hour": _build_limit("five_hour", None, now),
             "weekly": _build_limit("weekly", None, now),
         },
-        "cost": {
-            "currency": "USD",
-            "today": 0,
-            "last_30_days": 0,
-            "historical": 0,
-            "tokens": {
-                "today": 0,
-                "last_30_days": 0,
-                "historical": 0,
-            },
-        },
         "display": {
-            "limits": "Codex unavailable",
-            "cost_today": "$0.00 today",
-            "cost_total": "30d $0.00 | All $0.00",
+            "codex_5h": "unavailable",
+            "codex_weekly": "unavailable",
             "summary": "Codex unavailable",
         },
     }
@@ -297,7 +194,7 @@ class CodexUsageHandler(BaseHTTPRequestHandler):
         if parsed.path != "/codex-usage":
             self.send_error(404, "Not Found")
             return
-        response = collect_codex_usage(self.server.codex_dir, self.server.pricing)
+        response = collect_codex_usage(self.server.codex_dir)
         self._send_json(response)
 
     def log_message(self, format: str, *args: Any) -> None:
@@ -316,10 +213,9 @@ class CodexUsageHandler(BaseHTTPRequestHandler):
 
 
 class CodexUsageServer(ThreadingHTTPServer):
-    def __init__(self, server_address: tuple[str, int], handler_class: type[BaseHTTPRequestHandler], codex_dir: Path, pricing: Pricing, quiet: bool) -> None:
+    def __init__(self, server_address: tuple[str, int], handler_class: type[BaseHTTPRequestHandler], codex_dir: Path, quiet: bool) -> None:
         super().__init__(server_address, handler_class)
         self.codex_dir = codex_dir
-        self.pricing = pricing
         self.quiet = quiet
 
 
@@ -339,13 +235,12 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    pricing = Pricing.from_env()
     codex_dir = args.codex_dir.expanduser()
     if args.once:
-        print(json.dumps(collect_codex_usage(codex_dir, pricing), ensure_ascii=False, indent=2))
+        print(json.dumps(collect_codex_usage(codex_dir), ensure_ascii=False, indent=2))
         return 0
 
-    server = CodexUsageServer((args.host, args.port), CodexUsageHandler, codex_dir, pricing, args.quiet)
+    server = CodexUsageServer((args.host, args.port), CodexUsageHandler, codex_dir, args.quiet)
     print(f"Codex usage bridge listening on http://{args.host}:{args.port}/codex-usage")
     print(f"Reading Codex sessions from {codex_dir}")
     try:
