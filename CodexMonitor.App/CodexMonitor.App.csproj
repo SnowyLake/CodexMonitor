@@ -2,12 +2,15 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CodexMonitor.Core\CodexMonitor.Core.csproj" />
+    <Content Include="..\Resources\icon.ico" Link="Resources\icon.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\Resources\icon.png" Link="Resources\icon.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows</TargetFramework>
     <RootNamespace>CodexMonitor.App</RootNamespace>
+    <ApplicationIcon>..\Resources\icon.ico</ApplicationIcon>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>

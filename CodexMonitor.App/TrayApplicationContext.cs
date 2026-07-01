@@ -10,6 +10,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private readonly SettingsStore m_SettingsStore;
     private readonly CodexMonitorCollector m_Collector;
     private readonly UsageCache m_UsageCache = new();
+    private readonly Icon m_AppIcon;
     private readonly NotifyIcon m_NotifyIcon;
     private readonly System.Windows.Forms.Timer m_RefreshTimer = new();
     private readonly SynchronizationContext m_SynchronizationContext;
@@ -29,6 +30,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         m_SynchronizationContext = SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext();
         m_SettingsStore = new SettingsStore();
         m_Collector = new CodexMonitorCollector();
+        m_AppIcon = LoadApplicationIcon();
         m_Settings = m_SettingsStore.Load();
         if (string.IsNullOrWhiteSpace(m_Settings.LiteMonitorDir))
         {
@@ -60,6 +62,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
             m_Server?.Dispose();
             m_RefreshTimer.Dispose();
             m_NotifyIcon.Dispose();
+            m_AppIcon.Dispose();
             m_SignalCancellation.Dispose();
         }
 
@@ -82,7 +85,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         NotifyIcon notifyIcon = new()
         {
             ContextMenuStrip = menu,
-            Icon = SystemIcons.Application,
+            Icon = m_AppIcon,
             Text = "CodexMonitor LiteMonitor",
             Visible = true,
         };
@@ -150,7 +153,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
             return;
         }
 
-        m_SettingsForm = new SettingsForm(m_Settings);
+        m_SettingsForm = new SettingsForm(m_Settings, m_AppIcon);
         m_SettingsForm.SettingsSaved += (_, args) => SaveSettings(args.PreviousPort);
         m_SettingsForm.InstallPluginRequested += (_, _) => InstallPlugin();
         m_SettingsForm.RefreshNowRequested += async (_, _) => await RefreshUsageAsync();
@@ -279,5 +282,14 @@ internal sealed class TrayApplicationContext : ApplicationContext
         m_NotifyIcon.Visible = false;
         m_Server?.Stop();
         ExitThread();
+    }
+
+    /// <summary>
+    /// Loads the application icon from copied resources.
+    /// </summary>
+    private static Icon LoadApplicationIcon()
+    {
+        string iconPath = Path.Combine(AppContext.BaseDirectory, "Resources", "icon.ico");
+        return File.Exists(iconPath) ? new Icon(iconPath) : (Icon)SystemIcons.Application.Clone();
     }
 }

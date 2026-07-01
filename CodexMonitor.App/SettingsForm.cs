@@ -36,10 +36,11 @@ internal sealed class SettingsForm : Form
     /// <summary>
     /// Creates a settings window for the tray application.
     /// </summary>
-    public SettingsForm(AppSettings settings)
+    public SettingsForm(AppSettings settings, Icon appIcon)
     {
         m_Settings = settings;
         Text = "CodexMonitor Settings";
+        Icon = appIcon;
         StartPosition = FormStartPosition.CenterScreen;
         MinimumSize = new Size(620, 430);
         Size = new Size(720, 480);
