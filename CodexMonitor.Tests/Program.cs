@@ -1,6 +1,7 @@
 using CodexMonitor.Core;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 
 namespace CodexMonitor.Tests;
@@ -15,10 +16,13 @@ internal static class Program
     private static async Task<int> Main()
     {
         await RunAsync("collects limits and display labels", TestCollectsLimitsAndDisplayLabelsAsync);
-        await RunAsync("uses clock label for weekly reset below 24 hours", TestWeeklyClockLabelAsync);
+        await RunAsync("uses clock label for same-day weekly reset", TestWeeklyClockLabelAsync);
+        await RunAsync("uses date label for next-day weekly reset", TestNextDayWeeklyDateLabelAsync);
         await RunAsync("returns unavailable response without sessions", TestEmptyResponseAsync);
+        await RunAsync("collects official Codex quota", TestOfficialQuotaAsync);
         await RunAsync("serves health and usage over HTTP", TestHttpServerAsync);
         await RunAsync("installs LiteMonitor plugin config", TestPluginInstallAsync);
+        await RunAsync("normalizes settings refresh interval", TestSettingsNormalizeAsync);
         Console.WriteLine(s_Failures == 0 ? "All C# tests passed." : $"C# tests failed: {s_Failures}");
         return s_Failures == 0 ? 0 : 1;
     }
@@ -66,7 +70,7 @@ internal static class Program
     }
 
     /// <summary>
-    /// Tests weekly reset labels below twenty four hours.
+    /// Tests weekly reset labels on the current day.
     /// </summary>
     private static Task TestWeeklyClockLabelAsync()
     {
@@ -80,6 +84,24 @@ internal static class Program
         UsageResponse response = collector.Collect(temp.Path);
 
         AssertEqual("60%  15:00", response.Display.CodexWeekly, "weekly clock display");
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Tests weekly reset labels on the next day even when below twenty four hours.
+    /// </summary>
+    private static Task TestNextDayWeeklyDateLabelAsync()
+    {
+        using TempDirectory temp = new();
+        DateTimeOffset now = new(2026, 7, 1, 23, 0, 0, TimeSpan.FromHours(8));
+        long reset5H = now.AddHours(1).ToUnixTimeSeconds();
+        DateTimeOffset resetWeekly = new(2026, 7, 2, 2, 0, 0, TimeSpan.FromHours(8));
+        WriteTokenEvent(temp.Path, now, reset5H, resetWeekly.ToUnixTimeSeconds(), 20.0, 40.0);
+
+        CodexMonitorCollector collector = new(() => now);
+        UsageResponse response = collector.Collect(temp.Path);
+
+        AssertEqual("60%  07-02", response.Display.CodexWeekly, "weekly next-day date display");
         return Task.CompletedTask;
     }
 
@@ -99,6 +121,55 @@ internal static class Program
     }
 
     /// <summary>
+    /// Tests official ChatGPT quota parsing for Codex OAuth accounts.
+    /// </summary>
+    private static Task TestOfficialQuotaAsync()
+    {
+        using TempDirectory temp = new();
+        DateTimeOffset now = new(2026, 7, 1, 12, 0, 0, TimeSpan.FromHours(8));
+        File.WriteAllText(Path.Combine(temp.Path, "auth.json"), JsonSerializer.Serialize(new
+        {
+            auth_mode = "chatgpt",
+            tokens = new
+            {
+                access_token = "test-token",
+                account_id = "account-123",
+            },
+        }));
+
+        string body = JsonSerializer.Serialize(new
+        {
+            rate_limit = new
+            {
+                primary_window = new
+                {
+                    used_percent = 25.0,
+                    limit_window_seconds = 18000,
+                    reset_at = now.AddHours(1).ToUnixTimeSeconds(),
+                },
+                secondary_window = new
+                {
+                    used_percent = 40.0,
+                    limit_window_seconds = 604800,
+                    reset_at = now.AddDays(2).ToUnixTimeSeconds(),
+                },
+            },
+        });
+        using HttpClient client = new(new FakeHttpMessageHandler(body));
+        CodexMonitorCollector collector = new(() => now, client);
+
+        UsageResponse response = collector.Collect(temp.Path);
+
+        AssertTrue(response.Available, "official response should be available");
+        AssertEqual("official_api", response.Source, "official source");
+        AssertEqual(75, response.Limits.FiveHour.RemainingPercent, "official five hour remaining percent");
+        AssertEqual(60, response.Limits.Weekly.RemainingPercent, "official weekly remaining percent");
+        AssertEqual("75%  13:00", response.Display.Codex5H, "official five hour display");
+        AssertEqual("60%  07-03", response.Display.CodexWeekly, "official weekly display");
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
     /// Tests the lightweight HTTP server endpoints.
     /// </summary>
     private static async Task TestHttpServerAsync()
@@ -107,7 +178,9 @@ internal static class Program
         DateTimeOffset now = new(2026, 7, 1, 12, 0, 0, TimeSpan.FromHours(8));
         WriteTokenEvent(temp.Path, now, now.AddHours(1).ToUnixTimeSeconds(), now.AddDays(2).ToUnixTimeSeconds(), 10.0, 20.0);
         CodexMonitorCollector collector = new(() => now);
-        using LightweightHttpServer server = new(collector, temp.Path, 0);
+        UsageCache usageCache = new();
+        usageCache.Update(collector.Collect(temp.Path));
+        using LightweightHttpServer server = new(usageCache, 0);
         server.Start();
 
         using HttpClient client = new();
@@ -133,6 +206,24 @@ internal static class Program
         AssertTrue(File.Exists(targetPath), "plugin file should exist");
         string content = File.ReadAllText(targetPath);
         AssertTrue(content.Contains("Codex Weekly", StringComparison.Ordinal), "plugin content should include weekly output");
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Tests default refresh interval normalization.
+    /// </summary>
+    private static Task TestSettingsNormalizeAsync()
+    {
+        AppSettings settings = new()
+        {
+            Port = -1,
+            RefreshIntervalMinutes = 0,
+        };
+
+        settings.Normalize();
+
+        AssertEqual(CodexMonitorDefaults.Port, settings.Port, "default port");
+        AssertEqual(CodexMonitorDefaults.RefreshIntervalMinutes, settings.RefreshIntervalMinutes, "default refresh interval");
         return Task.CompletedTask;
     }
 
@@ -213,5 +304,44 @@ internal sealed class TempDirectory : IDisposable
     public void Dispose()
     {
         Directory.Delete(Path, true);
+    }
+}
+
+internal sealed class FakeHttpMessageHandler : HttpMessageHandler
+{
+    private readonly string m_Body;
+
+    /// <summary>
+    /// Creates a handler that returns a fixed JSON response.
+    /// </summary>
+    public FakeHttpMessageHandler(string body)
+    {
+        m_Body = body;
+    }
+
+    /// <summary>
+    /// Sends a fake HTTP response for collector tests.
+    /// </summary>
+    protected override HttpResponseMessage Send(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        if (request.RequestUri?.ToString() != "https://chatgpt.com/backend-api/wham/usage")
+        {
+            throw new InvalidOperationException("unexpected request URI");
+        }
+
+        if (request.Headers.Authorization?.Parameter != "test-token")
+        {
+            throw new InvalidOperationException("missing authorization header");
+        }
+
+        if (!request.Headers.TryGetValues("ChatGPT-Account-Id", out IEnumerable<string>? accountIds) || accountIds.Single() != "account-123")
+        {
+            throw new InvalidOperationException("missing account header");
+        }
+
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(m_Body, Encoding.UTF8, "application/json"),
+        };
     }
 }

@@ -24,11 +24,14 @@ internal sealed class SettingsForm : Form
     private readonly Label m_DisplayLabel = new();
     private readonly TextBox m_LiteMonitorPathTextBox = new();
     private readonly NumericUpDown m_PortInput = new();
+    private readonly NumericUpDown m_RefreshIntervalInput = new();
     private readonly CheckBox m_StartWithWindowsCheckBox = new();
 
     public event EventHandler<SettingsSavedEventArgs>? SettingsSaved;
 
     public event EventHandler? InstallPluginRequested;
+
+    public event EventHandler? RefreshNowRequested;
 
     /// <summary>
     /// Creates a settings window for the tray application.
@@ -52,11 +55,11 @@ internal sealed class SettingsForm : Form
         m_ServiceStatusLabel.Text = error == null
             ? $"Service: {(isRunning ? "Running" : "Stopped")} on 127.0.0.1:{port}"
             : $"Service: Error on 127.0.0.1:{port} - {error}";
-        m_UpdatedAtLabel.Text = $"Updated: {response?.UpdatedAt ?? "unavailable"}";
-        m_SourceFileLabel.Text = $"Source: {TrimMiddle(response?.SourceFile ?? "unavailable", 82)}";
+        m_UpdatedAtLabel.Text = $"Updated: {response?.UpdatedAt ?? "waiting for first refresh"}";
+        m_SourceFileLabel.Text = $"Source: {TrimMiddle(response?.SourceFile ?? response?.Source ?? "unavailable", 82)}";
         m_DisplayLabel.Text = response?.Available == true
             ? $"{response.Display.Codex5H}    |    {response.Display.CodexWeekly}"
-            : "Codex monitor unavailable";
+            : $"Codex monitor unavailable{FormatResponseError(response)}";
     }
 
     /// <summary>
@@ -140,7 +143,7 @@ internal sealed class SettingsForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 4,
-            RowCount = 3,
+            RowCount = 4,
             AutoSize = true,
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -165,10 +168,18 @@ internal sealed class SettingsForm : Form
         m_PortInput.Margin = new Padding(8, 4, 8, 4);
         layout.Controls.Add(m_PortInput, 1, 1);
 
+        Label refreshIntervalLabel = CreateFieldLabel("Refresh interval (minutes)");
+        layout.Controls.Add(refreshIntervalLabel, 0, 2);
+        m_RefreshIntervalInput.Minimum = CodexMonitorDefaults.MinimumRefreshIntervalMinutes;
+        m_RefreshIntervalInput.Maximum = CodexMonitorDefaults.MaximumRefreshIntervalMinutes;
+        m_RefreshIntervalInput.Width = 120;
+        m_RefreshIntervalInput.Margin = new Padding(8, 4, 8, 4);
+        layout.Controls.Add(m_RefreshIntervalInput, 1, 2);
+
         m_StartWithWindowsCheckBox.AutoSize = true;
         m_StartWithWindowsCheckBox.Text = "Start with Windows";
         m_StartWithWindowsCheckBox.Margin = new Padding(8, 8, 8, 4);
-        layout.Controls.Add(m_StartWithWindowsCheckBox, 1, 2);
+        layout.Controls.Add(m_StartWithWindowsCheckBox, 1, 3);
 
         return group;
     }
@@ -185,6 +196,7 @@ internal sealed class SettingsForm : Form
             AutoSize = true,
         };
         row.Controls.Add(CreateButton("Save", SaveSettings));
+        row.Controls.Add(CreateButton("Refresh Now", RequestRefreshNow));
         row.Controls.Add(CreateButton("Install Plugin Config", RequestInstallPlugin));
         row.Controls.Add(CreateButton("Close", (_, _) => Hide()));
         return row;
@@ -197,6 +209,7 @@ internal sealed class SettingsForm : Form
     {
         m_LiteMonitorPathTextBox.Text = m_Settings.LiteMonitorDir;
         m_PortInput.Value = Math.Max(m_PortInput.Minimum, Math.Min(m_PortInput.Maximum, m_Settings.Port));
+        m_RefreshIntervalInput.Value = Math.Max(m_RefreshIntervalInput.Minimum, Math.Min(m_RefreshIntervalInput.Maximum, m_Settings.RefreshIntervalMinutes));
         m_StartWithWindowsCheckBox.Checked = m_Settings.StartWithWindows;
     }
 
@@ -240,6 +253,7 @@ internal sealed class SettingsForm : Form
         int previousPort = m_Settings.Port;
         m_Settings.LiteMonitorDir = m_LiteMonitorPathTextBox.Text.Trim();
         m_Settings.Port = (int)m_PortInput.Value;
+        m_Settings.RefreshIntervalMinutes = (int)m_RefreshIntervalInput.Value;
         m_Settings.StartWithWindows = m_StartWithWindowsCheckBox.Checked;
         SettingsSaved?.Invoke(this, new SettingsSavedEventArgs(previousPort));
         MessageBox.Show(this, "Settings saved.", "CodexMonitor", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -252,6 +266,14 @@ internal sealed class SettingsForm : Form
     {
         m_Settings.LiteMonitorDir = m_LiteMonitorPathTextBox.Text.Trim();
         InstallPluginRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Raises a request to refresh the visible quota values immediately.
+    /// </summary>
+    private void RequestRefreshNow(object? sender, EventArgs args)
+    {
+        RefreshNowRequested?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
@@ -296,5 +318,13 @@ internal sealed class SettingsForm : Form
 
         int keep = (maxLength - 3) / 2;
         return value[..keep] + "..." + value[^keep..];
+    }
+
+    /// <summary>
+    /// Formats a response error suffix for display.
+    /// </summary>
+    private static string FormatResponseError(UsageResponse? response)
+    {
+        return string.IsNullOrWhiteSpace(response?.Error) ? string.Empty : $": {response.Error}";
     }
 }

@@ -1,18 +1,27 @@
 using System.Globalization;
+using System.Net;
+using System.Net.Http.Headers;
 using System.Text.Json;
 
 namespace CodexMonitor.Core;
 
 public sealed class CodexMonitorCollector
 {
+    private static readonly HttpClient s_HttpClient = new()
+    {
+        Timeout = TimeSpan.FromSeconds(15),
+    };
+
     private readonly Func<DateTimeOffset> m_NowProvider;
+    private readonly HttpClient m_HttpClient;
 
     /// <summary>
     /// Creates a collector that reads Codex session JSONL files.
     /// </summary>
-    public CodexMonitorCollector(Func<DateTimeOffset>? nowProvider = null)
+    public CodexMonitorCollector(Func<DateTimeOffset>? nowProvider = null, HttpClient? httpClient = null)
     {
         m_NowProvider = nowProvider ?? (() => DateTimeOffset.Now);
+        m_HttpClient = httpClient ?? s_HttpClient;
     }
 
     /// <summary>
@@ -27,6 +36,87 @@ public sealed class CodexMonitorCollector
     /// Collects the latest Codex monitor response from a Codex directory.
     /// </summary>
     public UsageResponse Collect(string codexDirectory)
+    {
+        UsageResponse officialResponse = CollectOfficialUsage(codexDirectory);
+        if (officialResponse.Available || !CanFallbackToSessionUsage(officialResponse) || !Directory.Exists(Path.Combine(codexDirectory, "sessions")))
+        {
+            return officialResponse;
+        }
+
+        UsageResponse sessionResponse = CollectSessionUsage(codexDirectory);
+        if (sessionResponse.Available)
+        {
+            return sessionResponse;
+        }
+
+        return officialResponse;
+    }
+
+    /// <summary>
+    /// Gets the default Codex home directory.
+    /// </summary>
+    public static string GetDefaultCodexDirectory()
+    {
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex");
+    }
+
+    /// <summary>
+    /// Returns whether local session data can be used when official quota is unavailable.
+    /// </summary>
+    private static bool CanFallbackToSessionUsage(UsageResponse response)
+    {
+        return response.Error is "Codex auth.json not found" or "Codex is not using ChatGPT OAuth mode" or "Codex access_token is missing";
+    }
+
+    /// <summary>
+    /// Collects Codex usage from the official ChatGPT quota endpoint.
+    /// </summary>
+    private UsageResponse CollectOfficialUsage(string codexDirectory)
+    {
+        DateTimeOffset now = m_NowProvider();
+        string authPath = Path.Combine(codexDirectory, "auth.json");
+        CodexCredentials credentials = ReadCodexCredentials(authPath);
+        if (!credentials.IsAvailable)
+        {
+            return CreateEmptyResponse(codexDirectory, now, credentials.Error ?? "Codex OAuth credentials unavailable");
+        }
+
+        HttpRequestMessage request = new(HttpMethod.Get, "https://chatgpt.com/backend-api/wham/usage");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credentials.AccessToken);
+        request.Headers.UserAgent.ParseAdd("codex-cli");
+        request.Headers.Accept.ParseAdd("application/json");
+        if (!string.IsNullOrWhiteSpace(credentials.AccountId))
+        {
+            request.Headers.TryAddWithoutValidation("ChatGPT-Account-Id", credentials.AccountId);
+        }
+
+        try
+        {
+            using HttpResponseMessage response = m_HttpClient.Send(request);
+            if (response.StatusCode == HttpStatusCode.Unauthorized || response.StatusCode == HttpStatusCode.Forbidden)
+            {
+                return CreateEmptyResponse(codexDirectory, now, $"Codex OAuth token expired or unauthorized: HTTP {(int)response.StatusCode}");
+            }
+
+            string body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            if (!response.IsSuccessStatusCode)
+            {
+                return CreateEmptyResponse(codexDirectory, now, $"Codex usage API failed: HTTP {(int)response.StatusCode}");
+            }
+
+            using JsonDocument document = JsonDocument.Parse(body);
+            return BuildOfficialResponse(codexDirectory, authPath, document.RootElement, now);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException or IOException)
+        {
+            return CreateEmptyResponse(codexDirectory, now, $"Codex usage API unavailable: {exception.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Collects Codex usage from local session JSONL files.
+    /// </summary>
+    private UsageResponse CollectSessionUsage(string codexDirectory)
     {
         DateTimeOffset now = m_NowProvider();
         string sessionsDirectory = Path.Combine(codexDirectory, "sessions");
@@ -100,11 +190,45 @@ public sealed class CodexMonitorCollector
     }
 
     /// <summary>
-    /// Gets the default Codex home directory.
+    /// Builds a usage response from the official quota endpoint JSON.
     /// </summary>
-    public static string GetDefaultCodexDirectory()
+    private UsageResponse BuildOfficialResponse(string codexDirectory, string authPath, JsonElement root, DateTimeOffset now)
     {
-        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex");
+        JsonElement rateLimit = GetObjectProperty(root, "rate_limit");
+        JsonElement primary = GetObjectProperty(rateLimit, "primary_window");
+        JsonElement secondary = GetObjectProperty(rateLimit, "secondary_window");
+        UsageLimit fiveHour = BuildOfficialLimit("five_hour", primary, now);
+        UsageLimit weekly = BuildOfficialLimit("weekly", secondary, now);
+        weekly.ResetLabel = FormatWeeklyResetLabel(weekly.ResetsAt, now);
+
+        if (primary.ValueKind != JsonValueKind.Object && secondary.ValueKind != JsonValueKind.Object)
+        {
+            return CreateEmptyResponse(codexDirectory, now, "Codex usage API did not return rate_limit windows");
+        }
+
+        string codex5HDisplay = $"{fiveHour.RemainingPercent}%  {fiveHour.ResetTime}";
+        string codexWeeklyDisplay = $"{weekly.RemainingPercent}%  {weekly.ResetLabel}";
+        return new UsageResponse
+        {
+            Available = true,
+            Error = null,
+            CodexDir = codexDirectory,
+            SourceFile = authPath,
+            Source = "official_api",
+            PlanType = "chatgpt",
+            UpdatedAt = now.ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture),
+            Limits = new UsageLimits
+            {
+                FiveHour = fiveHour,
+                Weekly = weekly,
+            },
+            Display = new UsageDisplay
+            {
+                Codex5H = codex5HDisplay,
+                CodexWeekly = codexWeeklyDisplay,
+                Summary = $"Codex 5h: {codex5HDisplay} | Codex Weekly: {codexWeeklyDisplay}",
+            },
+        };
     }
 
     /// <summary>
@@ -204,6 +328,60 @@ public sealed class CodexMonitorCollector
     }
 
     /// <summary>
+    /// Builds a usage limit model from an official quota window object.
+    /// </summary>
+    private static UsageLimit BuildOfficialLimit(string name, JsonElement data, DateTimeOffset now)
+    {
+        int usedPercent = ClampPercent((int)Math.Round(GetDoubleProperty(data, "used_percent", 0.0), MidpointRounding.AwayFromZero));
+        long resetsAt = GetInt64Property(data, "reset_at", 0);
+        int windowMinutes = GetInt32Property(data, "limit_window_seconds", 0) / 60;
+        return new UsageLimit
+        {
+            Name = name,
+            UsedPercent = usedPercent,
+            RemainingPercent = 100 - usedPercent,
+            WindowMinutes = windowMinutes,
+            ResetsAt = resetsAt,
+            ResetAtLocal = FormatResetLocal(resetsAt, now),
+            ResetTime = FormatResetClock(resetsAt, now),
+        };
+    }
+
+    /// <summary>
+    /// Reads Codex OAuth credentials from auth.json.
+    /// </summary>
+    private static CodexCredentials ReadCodexCredentials(string authPath)
+    {
+        if (!File.Exists(authPath))
+        {
+            return CodexCredentials.Unavailable("Codex auth.json not found");
+        }
+
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(File.ReadAllText(authPath));
+            JsonElement root = document.RootElement;
+            if (GetStringProperty(root, "auth_mode", string.Empty) != "chatgpt")
+            {
+                return CodexCredentials.Unavailable("Codex is not using ChatGPT OAuth mode");
+            }
+
+            JsonElement tokens = GetObjectProperty(root, "tokens");
+            string accessToken = GetStringProperty(tokens, "access_token", string.Empty);
+            if (string.IsNullOrWhiteSpace(accessToken))
+            {
+                return CodexCredentials.Unavailable("Codex access_token is missing");
+            }
+
+            return new CodexCredentials(accessToken, GetStringProperty(tokens, "account_id", string.Empty), null);
+        }
+        catch (Exception exception) when (exception is JsonException or IOException or UnauthorizedAccessException)
+        {
+            return CodexCredentials.Unavailable($"Codex auth.json could not be read: {exception.Message}");
+        }
+    }
+
+    /// <summary>
     /// Creates an unavailable usage response.
     /// </summary>
     private static UsageResponse CreateEmptyResponse(string codexDirectory, DateTimeOffset now, string error)
@@ -255,7 +433,7 @@ public sealed class CodexMonitorCollector
     }
 
     /// <summary>
-    /// Formats the weekly reset as a date or local clock label.
+    /// Formats the weekly reset as a same-day clock or date label.
     /// </summary>
     private static string FormatWeeklyResetLabel(long epochSeconds, DateTimeOffset now)
     {
@@ -265,8 +443,7 @@ public sealed class CodexMonitorCollector
         }
 
         DateTimeOffset resetAt = DateTimeOffset.FromUnixTimeSeconds(epochSeconds).ToOffset(now.Offset);
-        TimeSpan untilReset = resetAt - now;
-        if (untilReset.TotalSeconds < 24 * 60 * 60)
+        if (resetAt.Date == now.Date && resetAt > now)
         {
             return resetAt.ToString("HH:mm", CultureInfo.InvariantCulture);
         }
@@ -362,4 +539,17 @@ public sealed class CodexMonitorCollector
     }
 
     private sealed record TokenCountEvent(DateTimeOffset Timestamp, JsonElement Payload, string SourceFile);
+
+    private sealed record CodexCredentials(string AccessToken, string AccountId, string? Error)
+    {
+        public bool IsAvailable => string.IsNullOrWhiteSpace(Error);
+
+        /// <summary>
+        /// Creates an unavailable credentials result.
+        /// </summary>
+        public static CodexCredentials Unavailable(string error)
+        {
+            return new CodexCredentials(string.Empty, string.Empty, error);
+        }
+    }
 }

@@ -12,11 +12,11 @@
 
 ## 项目概览
 
-`CodexMonitor` 是一个 C#/.NET Windows 托盘应用, 用于读取 Codex Desktop 写入的 `~/.codex/sessions/**/*.jsonl` 中的 `token_count` 事件, 并通过本地 HTTP 服务向 LiteMonitor 插件提供 Codex 额度显示数据.
+`CodexMonitor` 是一个 C#/.NET Windows 托盘应用, 用于读取 Codex OAuth 凭据并请求 ChatGPT 官方额度接口, 然后通过本地 HTTP 服务向 LiteMonitor 插件提供 Codex 额度显示数据. 当 OAuth 凭据不存在时, 会回退读取 `~/.codex/sessions/**/*.jsonl` 中的 `token_count` 事件.
 
 ## 目录结构
 
-- `CodexMonitor.Core`: 额度采集, HTTP 服务, 设置存储, LiteMonitor 定位, 插件安装, Windows 自启动管理.
+- `CodexMonitor.Core`: 官方额度采集, 本地 session 兜底采集, 使用量缓存, HTTP 服务, 设置存储, LiteMonitor 定位, 插件安装, Windows 自启动管理.
 - `CodexMonitor.App`: WinForms 托盘应用和设置窗口.
 - `CodexMonitor.Tests`: 自包含 C# 测试运行器.
 - `LiteMonitorPlugin`: LiteMonitor 插件定义, 当前插件文件为 `CodexMonitor.json`.
@@ -61,6 +61,6 @@ dotnet publish .\CodexMonitor.App\CodexMonitor.App.csproj -c Release -f net9.0-w
 ## 注意事项
 
 - 默认 HTTP 服务只监听 `127.0.0.1`, 不要无意改成局域网可访问地址.
-- 项目不读取 `~/.codex/auth.json`, 不访问 OpenAI API, 不接触 access token.
+- 项目会读取 `~/.codex/auth.json` 中的 Codex OAuth token, 仅用于请求 `https://chatgpt.com/backend-api/wham/usage`. 不要在日志, 本地 HTTP 响应, README 示例, 或插件 JSON 中暴露 access token.
 - 修改插件输出字段时, 同步检查 README 的 HTTP API 示例和 LiteMonitor 插件提取路径.
 - Windows 沙箱环境可能阻止 `dotnet` 写入或删除 `Builds` 下的生成文件. 遇到这种情况时, 使用受控提权重新执行验证或清理命令.

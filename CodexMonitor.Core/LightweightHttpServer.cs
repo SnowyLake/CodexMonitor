@@ -12,9 +12,7 @@ public sealed class LightweightHttpServer : IDisposable
         WriteIndented = false,
     };
 
-    private readonly CodexMonitorCollector m_Collector;
-    private readonly string m_CodexDirectory;
-    private readonly object m_Lock = new();
+    private readonly UsageCache m_UsageCache;
     private CancellationTokenSource? m_Cancellation;
     private TcpListener? m_Listener;
     private Task? m_AcceptTask;
@@ -31,10 +29,9 @@ public sealed class LightweightHttpServer : IDisposable
     /// <summary>
     /// Creates a loopback HTTP server for Codex monitor data.
     /// </summary>
-    public LightweightHttpServer(CodexMonitorCollector collector, string codexDirectory, int port)
+    public LightweightHttpServer(UsageCache usageCache, int port)
     {
-        m_Collector = collector;
-        m_CodexDirectory = codexDirectory;
+        m_UsageCache = usageCache;
         Port = port;
     }
 
@@ -172,15 +169,25 @@ public sealed class LightweightHttpServer : IDisposable
             return;
         }
 
-        UsageResponse response;
-        lock (m_Lock)
-        {
-            response = m_Collector.Collect(m_CodexDirectory);
-            LastResponse = response;
-            LastError = null;
-        }
+        UsageResponse response = m_UsageCache.Get() ?? CreatePendingResponse();
+        LastResponse = response;
+        LastError = null;
 
         await WriteJsonAsync(stream, 200, response, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Creates a response for requests that arrive before the first collection finishes.
+    /// </summary>
+    private static UsageResponse CreatePendingResponse()
+    {
+        return new UsageResponse
+        {
+            Available = false,
+            Error = "Usage has not been collected yet",
+            Source = "cache",
+            Display = new UsageDisplay(),
+        };
     }
 
     /// <summary>

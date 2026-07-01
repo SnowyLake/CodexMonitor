@@ -9,12 +9,15 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private readonly EventWaitHandle m_ShowSettingsEvent;
     private readonly SettingsStore m_SettingsStore;
     private readonly CodexMonitorCollector m_Collector;
+    private readonly UsageCache m_UsageCache = new();
     private readonly NotifyIcon m_NotifyIcon;
+    private readonly System.Windows.Forms.Timer m_RefreshTimer = new();
     private readonly SynchronizationContext m_SynchronizationContext;
     private readonly CancellationTokenSource m_SignalCancellation = new();
     private AppSettings m_Settings;
     private LightweightHttpServer? m_Server;
     private SettingsForm? m_SettingsForm;
+    private int m_IsRefreshing;
     private bool m_IsExiting;
 
     /// <summary>
@@ -33,7 +36,10 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
 
         m_NotifyIcon = CreateNotifyIcon();
+        m_RefreshTimer.Tick += async (_, _) => await RefreshUsageAsync();
         StartService();
+        ConfigureRefreshTimer();
+        _ = RefreshUsageAsync();
         StartSignalListener();
         if (!m_Settings.FirstRunCompleted)
         {
@@ -52,6 +58,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         {
             m_SignalCancellation.Cancel();
             m_Server?.Dispose();
+            m_RefreshTimer.Dispose();
             m_NotifyIcon.Dispose();
             m_SignalCancellation.Dispose();
         }
@@ -90,7 +97,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     {
         try
         {
-            m_Server = new LightweightHttpServer(m_Collector, CodexMonitorCollector.GetDefaultCodexDirectory(), m_Settings.Port);
+            m_Server = new LightweightHttpServer(m_UsageCache, m_Settings.Port);
             m_Server.Start();
             m_NotifyIcon.Text = $"CodexMonitor :{m_Server.Port}";
         }
@@ -146,9 +153,11 @@ internal sealed class TrayApplicationContext : ApplicationContext
         m_SettingsForm = new SettingsForm(m_Settings);
         m_SettingsForm.SettingsSaved += (_, args) => SaveSettings(args.PreviousPort);
         m_SettingsForm.InstallPluginRequested += (_, _) => InstallPlugin();
+        m_SettingsForm.RefreshNowRequested += async (_, _) => await RefreshUsageAsync();
         m_SettingsForm.FormClosed += (_, _) => m_SettingsForm = null;
         m_SettingsForm.Show();
         RefreshSettingsStatus();
+        _ = RefreshUsageAsync();
     }
 
     /// <summary>
@@ -158,12 +167,25 @@ internal sealed class TrayApplicationContext : ApplicationContext
     {
         StartupManager.SetEnabled(Application.ExecutablePath, m_Settings.StartWithWindows);
         m_SettingsStore.Save(m_Settings);
+        ConfigureRefreshTimer();
         if (previousPort != m_Settings.Port)
         {
             RestartService();
         }
 
         RefreshSettingsStatus();
+        _ = RefreshUsageAsync();
+    }
+
+    /// <summary>
+    /// Applies the configured settings panel refresh interval.
+    /// </summary>
+    private void ConfigureRefreshTimer()
+    {
+        m_Settings.Normalize();
+        m_RefreshTimer.Stop();
+        m_RefreshTimer.Interval = m_Settings.RefreshIntervalMinutes * 60 * 1000;
+        m_RefreshTimer.Start();
     }
 
     /// <summary>
@@ -217,16 +239,30 @@ internal sealed class TrayApplicationContext : ApplicationContext
             return;
         }
 
-        UsageResponse? response = null;
-        try
+        UsageResponse? response = m_UsageCache.Get();
+        m_SettingsForm.UpdateStatus(m_Server?.IsRunning == true, m_Server?.Port ?? m_Settings.Port, response, m_Server?.LastError);
+    }
+
+    /// <summary>
+    /// Collects fresh usage data and publishes it to the cache.
+    /// </summary>
+    private async Task RefreshUsageAsync()
+    {
+        if (Interlocked.Exchange(ref m_IsRefreshing, 1) == 1)
         {
-            response = m_Collector.Collect();
-        }
-        catch (IOException)
-        {
+            return;
         }
 
-        m_SettingsForm.UpdateStatus(m_Server?.IsRunning == true, m_Server?.Port ?? m_Settings.Port, response, m_Server?.LastError);
+        try
+        {
+            UsageResponse response = await Task.Run(() => m_Collector.Collect()).ConfigureAwait(true);
+            m_UsageCache.Update(response);
+            RefreshSettingsStatus();
+        }
+        finally
+        {
+            Interlocked.Exchange(ref m_IsRefreshing, 0);
+        }
     }
 
     /// <summary>

@@ -8,6 +8,8 @@ public sealed class AppSettings
 
     public int Port { get; set; } = CodexMonitorDefaults.Port;
 
+    public int RefreshIntervalMinutes { get; set; } = CodexMonitorDefaults.RefreshIntervalMinutes;
+
     public bool FirstRunCompleted { get; set; }
 
     public bool StartWithWindows { get; set; }
@@ -20,6 +22,12 @@ public sealed class AppSettings
         if (Port <= 0 || Port > 65535)
         {
             Port = CodexMonitorDefaults.Port;
+        }
+
+        if (RefreshIntervalMinutes < CodexMonitorDefaults.MinimumRefreshIntervalMinutes ||
+            RefreshIntervalMinutes > CodexMonitorDefaults.MaximumRefreshIntervalMinutes)
+        {
+            RefreshIntervalMinutes = CodexMonitorDefaults.RefreshIntervalMinutes;
         }
 
         LiteMonitorDir = LiteMonitorDir.Trim();

@@ -6,6 +6,9 @@ public static class CodexMonitorDefaults
 {
     public const string Host = "127.0.0.1";
     public const int Port = 17890;
+    public const int RefreshIntervalMinutes = 5;
+    public const int MinimumRefreshIntervalMinutes = 1;
+    public const int MaximumRefreshIntervalMinutes = 1440;
     public const string AppName = "CodexMonitor";
     public const string SettingsDirectoryName = "CodexMonitor";
     public const string SettingsFileName = "settings.json";
