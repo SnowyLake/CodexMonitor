@@ -7,6 +7,7 @@
 - [工作方式](#工作方式)
 - [快速开始](#快速开始)
 - [LiteMonitor 插件](#litemonitor-插件)
+- [开机自启](#开机自启)
 - [HTTP API](#http-api)
 - [费用估算](#费用估算)
 - [安全说明](#安全说明)
@@ -84,6 +85,22 @@ litemonitor/CodexUsage.json
 ```powershell
 .\scripts\install_litemonitor_plugin.ps1 -LiteMonitorDir "D:\Tools\LiteMonitor_v1.3.6-win-x64"
 ```
+
+## 开机自启
+
+可以注册一个登录时启动的计划任务:
+
+```powershell
+.\scripts\install_startup_task.ps1
+```
+
+如果系统默认 `python` 不可用, 可以指定 Python 路径:
+
+```powershell
+.\scripts\install_startup_task.ps1 -Python "$env:USERPROFILE\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"
+```
+
+计划任务只启动本地桥接服务, 默认监听 `127.0.0.1:17890`.
 
 ## HTTP API
 
