@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.tmp-tests/
+.test-work/
+.coverage
+dist/
+build/
+*.egg-info/
+*.log
+local_settings.json

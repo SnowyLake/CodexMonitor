@@ -1,0 +1,86 @@
+{
+  "id": "CodexUsage",
+  "meta": {
+    "name": "Codex 使用量",
+    "version": "1.0.0",
+    "author": "SnowyLake",
+    "description": "显示 OpenAI Codex 5 小时额度, 一周额度, 今日支出, 30 天支出和历史总计"
+  },
+  "inputs": [
+    {
+      "key": "bridge_url",
+      "label": "桥接服务地址",
+      "type": "text",
+      "default": "http://127.0.0.1:17890/codex-usage",
+      "placeholder": "http://127.0.0.1:17890/codex-usage",
+      "scope": "global"
+    }
+  ],
+  "execution": {
+    "type": "chain",
+    "interval": 60,
+    "steps": [
+      {
+        "id": "fetch_codex_usage",
+        "url": "{{bridge_url}}",
+        "method": "GET",
+        "response_format": "json",
+        "extract": {
+          "limits_display": "display.limits",
+          "cost_today_display": "display.cost_today",
+          "cost_total_display": "display.cost_total",
+          "summary_display": "display.summary",
+          "five_hour_percent": "limits.five_hour.used_percent",
+          "weekly_percent": "limits.weekly.used_percent"
+        },
+        "process": [
+          {
+            "var": "limit_color",
+            "source": "five_hour_percent",
+            "function": "threshold_switch",
+            "value_map": {
+              "0": "0",
+              "70": "1",
+              "90": "2"
+            }
+          },
+          {
+            "var": "weekly_color",
+            "source": "weekly_percent",
+            "function": "threshold_switch",
+            "value_map": {
+              "0": "0",
+              "70": "1",
+              "90": "2"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "outputs": [
+    {
+      "key": "limits",
+      "label": "Codex",
+      "short_label": "Cx",
+      "format_val": "{{limits_display}}",
+      "color": "{{limit_color}}",
+      "unit": ""
+    },
+    {
+      "key": "today_cost",
+      "label": "Codex",
+      "short_label": "$D",
+      "format_val": "{{cost_today_display}}",
+      "unit": ""
+    },
+    {
+      "key": "total_cost",
+      "label": "Codex",
+      "short_label": "$T",
+      "format_val": "{{cost_total_display}}",
+      "color": "{{weekly_color}}",
+      "unit": ""
+    }
+  ]
+}
