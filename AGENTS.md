@@ -21,17 +21,17 @@
 - `CodexMonitor.App`: WinForms 托盘应用和设置窗口.
 - `CodexMonitor.Tests`: 自包含 C# 测试运行器.
 - `LiteMonitorPlugin`: LiteMonitor 插件定义, 当前插件文件为 `CodexMonitor.json`.
-- `Builds`: 构建与发布产物目录, 只提交 `.gitkeep`, 其余内容由 `.gitignore` 忽略.
-- `Directory.Build.props` 和 `Directory.Build.targets`: 全局 MSBuild 输出路径和默认编译项排除规则.
+- `Builds`: 发布产物目录, 只提交 `.gitkeep`, 其余内容由 `.gitignore` 忽略.
+- `Directory.Build.props` 和 `Directory.Build.targets`: 全局 MSBuild 默认配置和默认编译项排除规则.
 
 ## 构建与输出
 
-- 统一构建输出根目录为 `Builds/{Configuration}/{ProjectName}`.
-- `bin` 输出路径为 `Builds/{Configuration}/{ProjectName}/bin`.
-- `obj` 输出根路径为 `Builds/{Configuration}/{ProjectName}/obj`.
+- `bin` 和 `obj` 使用各项目默认位置, 即 `{ProjectDir}/bin` 和 `{ProjectDir}/obj`, 由 `.gitignore` 的 `bin/` 和 `obj/` 规则过滤.
+- 不把 `bin`, `obj` 重定向到 `Builds/` 下, 避免 Rider/ReSharper 找不到 `obj` 里的隐式生成文件而误报.
+- `Builds/` 仅存放发布脚本通过 `-o` 显式输出的发布产物, 由脚本自行管理路径.
 - `Configuration` 为空时默认按 `Debug` 处理.
-- 不要把 `Builds/Debug`, `Builds/Release`, 或任何生成文件提交到仓库.
-- 如果调整构建输出路径, 必须确认 generated `.cs` 文件不会被 SDK 默认编译项重新纳入编译.
+- 不要把 `bin`, `obj`, `Builds` 下的任何生成文件提交到仓库.
+- `Directory.Build.targets` 排除 `Builds/**` 下的 `.cs`, 防止发布产物里的 generated `.cs` 被 SDK 默认编译项重新纳入编译.
 
 ## 开发规则
 
