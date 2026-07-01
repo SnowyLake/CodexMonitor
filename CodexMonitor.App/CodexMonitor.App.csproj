@@ -9,6 +9,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows</TargetFramework>
+    <AssemblyName>CodexMonitor</AssemblyName>
     <RootNamespace>CodexMonitor.App</RootNamespace>
     <ApplicationIcon>..\Resources\icon.ico</ApplicationIcon>
     <Nullable>enable</Nullable>

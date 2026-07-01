@@ -9,6 +9,7 @@ $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptRoot
 $projectPath = Join-Path $repoRoot "CodexMonitor.App\CodexMonitor.App.csproj"
 $publishDir = Join-Path $repoRoot "Builds\Release\Publish\win-x64"
+$appFileName = "CodexMonitor.exe"
 
 function Invoke-AppPublish {
     Write-Host "CodexMonitor publish started."
@@ -23,7 +24,7 @@ function Invoke-AppPublish {
 
         Write-Host ""
         Write-Host "Publish completed."
-        Write-Host "Executable: $(Join-Path $publishDir 'CodexMonitor.App.exe')"
+        Write-Host "Executable: $(Join-Path $publishDir $appFileName)"
     }
     finally {
         Pop-Location

@@ -9,26 +9,50 @@ $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptRoot
 $projectPath = Join-Path $repoRoot "CodexMonitor.App\CodexMonitor.App.csproj"
 $publishDir = Join-Path $repoRoot "Builds\Release\Publish\win-x64"
-$appPath = Join-Path $publishDir "CodexMonitor.App.exe"
+$appProcessNames = @("CodexMonitor", "CodexMonitor.App")
+$appPath = Join-Path $publishDir "CodexMonitor.exe"
 
 function Stop-RunningApp {
-    $processes = Get-Process -Name "CodexMonitor.App" -ErrorAction SilentlyContinue
+    $processes = foreach ($appProcessName in $appProcessNames) {
+        Get-Process -Name $appProcessName -ErrorAction SilentlyContinue
+    }
     if (-not $processes) {
-        Write-Host "No running CodexMonitor.App process found."
+        Write-Host "No running CodexMonitor process found."
         return
     }
 
     foreach ($process in $processes) {
         Write-Host "Stopping process $($process.Id): $($process.Path)"
-        Stop-Process -Id $process.Id -Force
-    }
-
-    foreach ($process in $processes) {
         try {
-            Wait-Process -Id $process.Id -Timeout 10
+            Stop-Process -Id $process.Id -Force -ErrorAction Stop
+            Wait-Process -Id $process.Id -Timeout 10 -ErrorAction SilentlyContinue
+            if (Get-Process -Id $process.Id -ErrorAction SilentlyContinue) {
+                Write-Host "Process $($process.Id) is still running after timeout."
+            }
+            else {
+                Write-Host "Process $($process.Id) stopped."
+            }
         }
         catch {
-            Write-Host "Process $($process.Id) did not exit before timeout."
+            Write-Host "Process $($process.Id) could not be stopped: $($_.Exception.Message)"
+        }
+    }
+}
+
+function Remove-LegacyPublishedFiles {
+    $legacyNames = @(
+        "CodexMonitor.App.exe",
+        "CodexMonitor.App.dll",
+        "CodexMonitor.App.pdb",
+        "CodexMonitor.App.deps.json",
+        "CodexMonitor.App.runtimeconfig.json"
+    )
+
+    foreach ($legacyName in $legacyNames) {
+        $legacyPath = Join-Path $publishDir $legacyName
+        if (Test-Path -LiteralPath $legacyPath) {
+            Remove-Item -LiteralPath $legacyPath -Force
+            Write-Host "Removed legacy file: $legacyPath"
         }
     }
 }
@@ -56,7 +80,7 @@ function Start-PublishedApp {
 
     $process = Start-Process -FilePath $appPath -WindowStyle Hidden -PassThru
     Write-Host ""
-    Write-Host "Started CodexMonitor.App."
+    Write-Host "Started CodexMonitor."
     Write-Host "Process: $($process.Id)"
     Write-Host "Path:    $appPath"
 }
@@ -74,6 +98,7 @@ function Wait-BeforeExit {
 $exitCode = 0
 try {
     Stop-RunningApp
+    Remove-LegacyPublishedFiles
     Invoke-AppPublish
     Start-PublishedApp
 }
