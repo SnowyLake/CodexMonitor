@@ -6,7 +6,7 @@ public sealed class AppSettings
 {
     public string LiteMonitorDir { get; set; } = string.Empty;
 
-    public int Port { get; set; } = CodexUsageDefaults.Port;
+    public int Port { get; set; } = CodexMonitorDefaults.Port;
 
     public bool FirstRunCompleted { get; set; }
 
@@ -19,7 +19,7 @@ public sealed class AppSettings
     {
         if (Port <= 0 || Port > 65535)
         {
-            Port = CodexUsageDefaults.Port;
+            Port = CodexMonitorDefaults.Port;
         }
 
         LiteMonitorDir = LiteMonitorDir.Trim();
@@ -42,7 +42,7 @@ public sealed class SettingsStore
     public SettingsStore()
     {
         string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        SettingsPath = Path.Combine(appData, CodexUsageDefaults.SettingsDirectoryName, CodexUsageDefaults.SettingsFileName);
+        SettingsPath = Path.Combine(appData, CodexMonitorDefaults.SettingsDirectoryName, CodexMonitorDefaults.SettingsFileName);
     }
 
     /// <summary>

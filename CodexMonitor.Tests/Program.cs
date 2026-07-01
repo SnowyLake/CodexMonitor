@@ -51,7 +51,7 @@ internal static class Program
         long resetWeekly = now.AddDays(3).ToUnixTimeSeconds();
         WriteTokenEvent(temp.Path, now, reset5H, resetWeekly, 12.0, 34.0);
 
-        CodexUsageCollector collector = new(() => now);
+        CodexMonitorCollector collector = new(() => now);
         UsageResponse response = collector.Collect(temp.Path);
 
         AssertTrue(response.Available, "response should be available");
@@ -76,7 +76,7 @@ internal static class Program
         long resetWeekly = now.AddHours(3).ToUnixTimeSeconds();
         WriteTokenEvent(temp.Path, now, reset5H, resetWeekly, 20.0, 40.0);
 
-        CodexUsageCollector collector = new(() => now);
+        CodexMonitorCollector collector = new(() => now);
         UsageResponse response = collector.Collect(temp.Path);
 
         AssertEqual("60%  15:00", response.Display.CodexWeekly, "weekly clock display");
@@ -89,7 +89,7 @@ internal static class Program
     private static Task TestEmptyResponseAsync()
     {
         using TempDirectory temp = new();
-        CodexUsageCollector collector = new(() => new DateTimeOffset(2026, 7, 1, 12, 0, 0, TimeSpan.FromHours(8)));
+        CodexMonitorCollector collector = new(() => new DateTimeOffset(2026, 7, 1, 12, 0, 0, TimeSpan.FromHours(8)));
         UsageResponse response = collector.Collect(temp.Path);
 
         AssertTrue(!response.Available, "response should be unavailable");
@@ -106,7 +106,7 @@ internal static class Program
         using TempDirectory temp = new();
         DateTimeOffset now = new(2026, 7, 1, 12, 0, 0, TimeSpan.FromHours(8));
         WriteTokenEvent(temp.Path, now, now.AddHours(1).ToUnixTimeSeconds(), now.AddDays(2).ToUnixTimeSeconds(), 10.0, 20.0);
-        CodexUsageCollector collector = new(() => now);
+        CodexMonitorCollector collector = new(() => now);
         using LightweightHttpServer server = new(collector, temp.Path, 0);
         server.Start();
 
@@ -197,7 +197,7 @@ internal static class Program
 
 internal sealed class TempDirectory : IDisposable
 {
-    public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "CodexUsageTests", Guid.NewGuid().ToString("N"));
+    public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "CodexMonitorTests", Guid.NewGuid().ToString("N"));
 
     /// <summary>
     /// Creates a temporary directory for a test.

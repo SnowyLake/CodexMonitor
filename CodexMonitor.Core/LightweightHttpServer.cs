@@ -12,7 +12,7 @@ public sealed class LightweightHttpServer : IDisposable
         WriteIndented = false,
     };
 
-    private readonly CodexUsageCollector m_Collector;
+    private readonly CodexMonitorCollector m_Collector;
     private readonly string m_CodexDirectory;
     private readonly object m_Lock = new();
     private CancellationTokenSource? m_Cancellation;
@@ -29,9 +29,9 @@ public sealed class LightweightHttpServer : IDisposable
     public string? LastError { get; private set; }
 
     /// <summary>
-    /// Creates a loopback HTTP server for Codex usage data.
+    /// Creates a loopback HTTP server for Codex monitor data.
     /// </summary>
-    public LightweightHttpServer(CodexUsageCollector collector, string codexDirectory, int port)
+    public LightweightHttpServer(CodexMonitorCollector collector, string codexDirectory, int port)
     {
         m_Collector = collector;
         m_CodexDirectory = codexDirectory;

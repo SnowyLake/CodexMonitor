@@ -1,0 +1,10 @@
+<Project>
+  <ItemGroup>
+    <Compile Remove="$(MSBuildThisFileDirectory)Builds\**\*.cs" />
+    <Compile Remove="..\Builds\**\*.cs" />
+    <EmbeddedResource Remove="$(MSBuildThisFileDirectory)Builds\**\*" />
+    <EmbeddedResource Remove="..\Builds\**\*" />
+    <None Remove="$(MSBuildThisFileDirectory)Builds\**\*" />
+    <None Remove="..\Builds\**\*" />
+  </ItemGroup>
+</Project>

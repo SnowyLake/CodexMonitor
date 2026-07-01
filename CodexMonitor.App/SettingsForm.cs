@@ -36,7 +36,7 @@ internal sealed class SettingsForm : Form
     public SettingsForm(AppSettings settings)
     {
         m_Settings = settings;
-        Text = "CodexUsage Settings";
+        Text = "CodexMonitor Settings";
         StartPosition = FormStartPosition.CenterScreen;
         MinimumSize = new Size(620, 430);
         Size = new Size(720, 480);
@@ -56,7 +56,7 @@ internal sealed class SettingsForm : Form
         m_SourceFileLabel.Text = $"Source: {TrimMiddle(response?.SourceFile ?? "unavailable", 82)}";
         m_DisplayLabel.Text = response?.Available == true
             ? $"{response.Display.Codex5H}    |    {response.Display.CodexWeekly}"
-            : "Codex usage unavailable";
+            : "Codex monitor unavailable";
     }
 
     /// <summary>
@@ -81,7 +81,7 @@ internal sealed class SettingsForm : Form
         {
             AutoSize = true,
             Font = new Font(Font, FontStyle.Bold),
-            Text = "CodexUsage LiteMonitor Tray",
+            Text = "CodexMonitor LiteMonitor Tray",
             Margin = new Padding(0, 0, 0, 12),
         };
         root.Controls.Add(titleLabel, 0, 0);
@@ -225,7 +225,7 @@ internal sealed class SettingsForm : Form
         string detected = LiteMonitorLocator.AutoDetect(m_LiteMonitorPathTextBox.Text);
         if (string.IsNullOrWhiteSpace(detected))
         {
-            MessageBox.Show(this, "LiteMonitor was not found.", "CodexUsage", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, "LiteMonitor was not found.", "CodexMonitor", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
@@ -242,7 +242,7 @@ internal sealed class SettingsForm : Form
         m_Settings.Port = (int)m_PortInput.Value;
         m_Settings.StartWithWindows = m_StartWithWindowsCheckBox.Checked;
         SettingsSaved?.Invoke(this, new SettingsSavedEventArgs(previousPort));
-        MessageBox.Show(this, "Settings saved.", "CodexUsage", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        MessageBox.Show(this, "Settings saved.", "CodexMonitor", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
     /// <summary>

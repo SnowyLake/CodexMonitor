@@ -3,20 +3,20 @@ using System.Text.Json;
 
 namespace CodexMonitor.Core;
 
-public sealed class CodexUsageCollector
+public sealed class CodexMonitorCollector
 {
     private readonly Func<DateTimeOffset> m_NowProvider;
 
     /// <summary>
     /// Creates a collector that reads Codex session JSONL files.
     /// </summary>
-    public CodexUsageCollector(Func<DateTimeOffset>? nowProvider = null)
+    public CodexMonitorCollector(Func<DateTimeOffset>? nowProvider = null)
     {
         m_NowProvider = nowProvider ?? (() => DateTimeOffset.Now);
     }
 
     /// <summary>
-    /// Collects the latest Codex usage response from the default Codex directory.
+    /// Collects the latest Codex monitor response from the default Codex directory.
     /// </summary>
     public UsageResponse Collect()
     {
@@ -24,7 +24,7 @@ public sealed class CodexUsageCollector
     }
 
     /// <summary>
-    /// Collects the latest Codex usage response from a Codex directory.
+    /// Collects the latest Codex monitor response from a Codex directory.
     /// </summary>
     public UsageResponse Collect(string codexDirectory)
     {

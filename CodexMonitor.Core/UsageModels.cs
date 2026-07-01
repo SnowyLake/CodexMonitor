@@ -2,15 +2,15 @@ using System.Text.Json.Serialization;
 
 namespace CodexMonitor.Core;
 
-public static class CodexUsageDefaults
+public static class CodexMonitorDefaults
 {
     public const string Host = "127.0.0.1";
     public const int Port = 17890;
-    public const string AppName = "CodexUsageLiteMonitor";
-    public const string SettingsDirectoryName = "CodexUsageLiteMonitor";
+    public const string AppName = "CodexMonitor";
+    public const string SettingsDirectoryName = "CodexMonitor";
     public const string SettingsFileName = "settings.json";
-    public const string StartupRunValueName = "CodexUsageLiteMonitorTray";
-    public const string PluginFileName = "CodexUsage.json";
+    public const string StartupRunValueName = "CodexMonitorTray";
+    public const string PluginFileName = "CodexMonitor.json";
 }
 
 public sealed class UsageResponse

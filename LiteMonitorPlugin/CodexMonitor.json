@@ -1,7 +1,7 @@
 {
-  "id": "CodexUsage",
+  "id": "CodexMonitor",
   "meta": {
-    "name": "Codex 使用量",
+    "name": "Codex Monitor",
     "version": "1.0.0",
     "author": "SnowyLake",
     "description": "显示 OpenAI Codex 5 小时额度和一周额度的剩余百分比与重置时间"

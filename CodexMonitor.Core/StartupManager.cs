@@ -14,7 +14,7 @@ public static class StartupManager
     public static bool IsEnabled(string executablePath)
     {
         using RegistryKey? key = Registry.CurrentUser.OpenSubKey(k_RunKeyPath, false);
-        string? value = key?.GetValue(CodexUsageDefaults.StartupRunValueName) as string;
+        string? value = key?.GetValue(CodexMonitorDefaults.StartupRunValueName) as string;
         return string.Equals(NormalizeRunValue(value), Quote(executablePath), StringComparison.OrdinalIgnoreCase);
     }
 
@@ -26,11 +26,11 @@ public static class StartupManager
         using RegistryKey key = Registry.CurrentUser.CreateSubKey(k_RunKeyPath, true) ?? throw new InvalidOperationException("Unable to open HKCU Run key.");
         if (enabled)
         {
-            key.SetValue(CodexUsageDefaults.StartupRunValueName, Quote(executablePath));
+            key.SetValue(CodexMonitorDefaults.StartupRunValueName, Quote(executablePath));
             return;
         }
 
-        key.DeleteValue(CodexUsageDefaults.StartupRunValueName, false);
+        key.DeleteValue(CodexMonitorDefaults.StartupRunValueName, false);
     }
 
     /// <summary>

@@ -1,0 +1,11 @@
+<Project>
+  <PropertyGroup>
+    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
+    <BuildsRoot>$(MSBuildThisFileDirectory)Builds\$(Configuration)\$(MSBuildProjectName)\</BuildsRoot>
+    <DefaultItemExcludes>$(DefaultItemExcludes);bin\**;obj\**;$(MSBuildThisFileDirectory)Builds\**;..\Builds\**</DefaultItemExcludes>
+    <OutputPath>$(BuildsRoot)bin\</OutputPath>
+    <BaseIntermediateOutputPath>$(BuildsRoot)obj\</BaseIntermediateOutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+</Project>

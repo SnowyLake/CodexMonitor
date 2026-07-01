@@ -4,9 +4,9 @@ public static class LiteMonitorPluginInstaller
 {
     public const string PluginJson = """
 {
-  "id": "CodexUsage",
+  "id": "CodexMonitor",
   "meta": {
-    "name": "Codex 使用量",
+    "name": "Codex Monitor",
     "version": "1.0.0",
     "author": "SnowyLake",
     "description": "显示 OpenAI Codex 5 小时额度和一周额度的剩余百分比与重置时间"
@@ -74,7 +74,7 @@ public static class LiteMonitorPluginInstaller
 
         string pluginDirectory = Path.Combine(resourcesDirectory, "plugins");
         Directory.CreateDirectory(pluginDirectory);
-        string targetPath = Path.Combine(pluginDirectory, CodexUsageDefaults.PluginFileName);
+        string targetPath = Path.Combine(pluginDirectory, CodexMonitorDefaults.PluginFileName);
         File.WriteAllText(targetPath, PluginJson);
         return targetPath;
     }

@@ -8,7 +8,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
 {
     private readonly EventWaitHandle m_ShowSettingsEvent;
     private readonly SettingsStore m_SettingsStore;
-    private readonly CodexUsageCollector m_Collector;
+    private readonly CodexMonitorCollector m_Collector;
     private readonly NotifyIcon m_NotifyIcon;
     private readonly SynchronizationContext m_SynchronizationContext;
     private readonly CancellationTokenSource m_SignalCancellation = new();
@@ -25,7 +25,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         m_ShowSettingsEvent = showSettingsEvent;
         m_SynchronizationContext = SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext();
         m_SettingsStore = new SettingsStore();
-        m_Collector = new CodexUsageCollector();
+        m_Collector = new CodexMonitorCollector();
         m_Settings = m_SettingsStore.Load();
         if (string.IsNullOrWhiteSpace(m_Settings.LiteMonitorDir))
         {
@@ -76,7 +76,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         {
             ContextMenuStrip = menu,
             Icon = SystemIcons.Application,
-            Text = "CodexUsage LiteMonitor",
+            Text = "CodexMonitor LiteMonitor",
             Visible = true,
         };
         notifyIcon.DoubleClick += (_, _) => ShowSettings();
@@ -90,14 +90,14 @@ internal sealed class TrayApplicationContext : ApplicationContext
     {
         try
         {
-            m_Server = new LightweightHttpServer(m_Collector, CodexUsageCollector.GetDefaultCodexDirectory(), m_Settings.Port);
+            m_Server = new LightweightHttpServer(m_Collector, CodexMonitorCollector.GetDefaultCodexDirectory(), m_Settings.Port);
             m_Server.Start();
-            m_NotifyIcon.Text = $"CodexUsage :{m_Server.Port}";
+            m_NotifyIcon.Text = $"CodexMonitor :{m_Server.Port}";
         }
         catch (SocketException exception)
         {
-            m_NotifyIcon.Text = "CodexUsage service failed";
-            MessageBox.Show($"Unable to start CodexUsage service on port {m_Settings.Port}.\n\n{exception.Message}", "CodexUsage", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            m_NotifyIcon.Text = "CodexMonitor service failed";
+            MessageBox.Show($"Unable to start CodexMonitor service on port {m_Settings.Port}.\n\n{exception.Message}", "CodexMonitor", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
 
@@ -181,11 +181,11 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
             string targetPath = LiteMonitorPluginInstaller.Install(m_Settings.LiteMonitorDir);
             RefreshSettingsStatus();
-            MessageBox.Show($"Installed LiteMonitor plugin:\n{targetPath}", "CodexUsage", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show($"Installed LiteMonitor plugin:\n{targetPath}", "CodexMonitor", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or DirectoryNotFoundException)
         {
-            MessageBox.Show(exception.Message, "CodexUsage", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(exception.Message, "CodexMonitor", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
 
@@ -196,7 +196,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     {
         if (!LiteMonitorLocator.IsLiteMonitorDirectory(m_Settings.LiteMonitorDir))
         {
-            MessageBox.Show("LiteMonitor folder is not configured.", "CodexUsage", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("LiteMonitor folder is not configured.", "CodexMonitor", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 

@@ -4,8 +4,8 @@ namespace CodexMonitor.App;
 
 internal static class Program
 {
-    private const string k_MutexName = "CodexUsageLiteMonitorTrayMutex";
-    private const string k_ShowSettingsEventName = "CodexUsageLiteMonitorTrayShowSettings";
+    private const string k_MutexName = "CodexMonitorTrayMutex";
+    private const string k_ShowSettingsEventName = "CodexMonitorTrayShowSettings";
 
     /// <summary>
     /// Starts the tray application or signals an existing instance.

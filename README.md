@@ -47,13 +47,13 @@
 发布托盘版 exe:
 
 ```powershell
-dotnet publish .\CodexMonitor.App\CodexMonitor.App.csproj -c Release -r win-x64 -p:PublishSingleFile=true -p:SelfContained=true -o .\Artifacts\CodexMonitor.App\win-x64
+dotnet publish .\CodexMonitor.App\CodexMonitor.App.csproj -c Release -r win-x64 -p:PublishSingleFile=true -p:SelfContained=true -o .\Builds\Release\CodexMonitor.App\publish\win-x64
 ```
 
 运行发布后的文件:
 
 ```text
-Artifacts/CodexMonitor.App/win-x64/CodexMonitor.App.exe
+Builds/Release/CodexMonitor.App/publish/win-x64/CodexMonitor.App.exe
 ```
 
 首次运行会打开设置窗口. 设置窗口中可以自动检测 LiteMonitor 路径, 安装插件配置, 并按需启用 `Start with Windows`.
@@ -71,7 +71,7 @@ http://127.0.0.1:17890/codex-usage
 托盘右键菜单包含:
 
 - `Open Settings`: 打开设置窗口.
-- `Install LiteMonitor Plugin`: 将内置 `CodexUsage.json` 写入 LiteMonitor 的 `resources/plugins/` 目录.
+- `Install LiteMonitor Plugin`: 将内置 `CodexMonitor.json` 写入 LiteMonitor 的 `resources/plugins/` 目录.
 - `Open LiteMonitor Folder`: 打开当前 LiteMonitor 目录.
 - `Restart Service`: 重启本地 HTTP 服务.
 - `Exit`: 停止 HTTP 服务并退出托盘程序.
@@ -79,7 +79,7 @@ http://127.0.0.1:17890/codex-usage
 设置保存位置:
 
 ```text
-%APPDATA%/CodexUsageLiteMonitor/settings.json
+%APPDATA%/CodexMonitor/settings.json
 ```
 
 LiteMonitor 自动搜索顺序:
@@ -94,10 +94,10 @@ LiteMonitor 自动搜索顺序:
 插件文件位于:
 
 ```text
-LiteMonitorPlugin/CodexUsage.json
+LiteMonitorPlugin/CodexMonitor.json
 ```
 
-推荐通过托盘设置窗口或托盘右键菜单安装插件配置. 手动安装时, 将 `LiteMonitorPlugin/CodexUsage.json` 放入 LiteMonitor 的 `resources/plugins/` 目录, 然后重启 LiteMonitor 或在 LiteMonitor 插件页面重载插件.
+推荐通过托盘设置窗口或托盘右键菜单安装插件配置. 手动安装时, 将 `LiteMonitorPlugin/CodexMonitor.json` 放入 LiteMonitor 的 `resources/plugins/` 目录, 然后重启 LiteMonitor 或在 LiteMonitor 插件页面重载插件.
 
 ## HTTP API
 
@@ -151,6 +151,8 @@ LiteMonitorPlugin/CodexUsage.json
 dotnet build .\CodexMonitor.sln
 ```
 
+构建产物统一输出到 `Builds/{Configuration}/{ProjectName}`. 例如 `CodexMonitor.App` 的 Debug 中间产物位于 `Builds/Debug/CodexMonitor.App/obj`, 编译产物位于 `Builds/Debug/CodexMonitor.App/bin`.
+
 运行 C# 测试:
 
 ```powershell
@@ -162,5 +164,5 @@ dotnet run --project .\CodexMonitor.Tests\CodexMonitor.Tests.csproj
 - `CodexMonitor.Core`: C# 额度解析, HTTP 服务, 设置, 插件安装, 自启管理.
 - `CodexMonitor.App`: WinForms 托盘应用和设置窗口.
 - `CodexMonitor.Tests`: C# 测试运行器.
-- `LiteMonitorPlugin/CodexUsage.json`: LiteMonitor 插件定义.
-- `Artifacts`: 发布产物目录.
+- `LiteMonitorPlugin/CodexMonitor.json`: LiteMonitor 插件定义.
+- `Builds`: 构建与发布产物目录.
