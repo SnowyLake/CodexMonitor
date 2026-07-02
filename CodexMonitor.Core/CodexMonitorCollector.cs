@@ -156,10 +156,11 @@ public sealed class CodexMonitorCollector
 
         UsageLimit fiveHour = BuildLimit("five_hour", primary, now);
         UsageLimit weekly = BuildLimit("weekly", secondary, now);
+        fiveHour.ResetLabel = FormatFiveHourResetLabel(fiveHour.ResetsAt, now);
         weekly.ResetLabel = FormatWeeklyResetLabel(weekly.ResetsAt, now);
 
-        string codex5HDisplay = $"{fiveHour.RemainingPercent}%  {fiveHour.ResetTime}";
-        string codexWeeklyDisplay = $"{weekly.RemainingPercent}%  {weekly.ResetLabel}";
+        string codex5HDisplay = $"{fiveHour.RemainingPercent}% [{fiveHour.ResetLabel}]";
+        string codexWeeklyDisplay = $"{weekly.RemainingPercent}% [{weekly.ResetLabel}]";
 
         return new UsageResponse
         {
@@ -199,6 +200,7 @@ public sealed class CodexMonitorCollector
         JsonElement secondary = GetObjectProperty(rateLimit, "secondary_window");
         UsageLimit fiveHour = BuildOfficialLimit("five_hour", primary, now);
         UsageLimit weekly = BuildOfficialLimit("weekly", secondary, now);
+        fiveHour.ResetLabel = FormatFiveHourResetLabel(fiveHour.ResetsAt, now);
         weekly.ResetLabel = FormatWeeklyResetLabel(weekly.ResetsAt, now);
 
         if (primary.ValueKind != JsonValueKind.Object && secondary.ValueKind != JsonValueKind.Object)
@@ -206,8 +208,8 @@ public sealed class CodexMonitorCollector
             return CreateEmptyResponse(codexDirectory, now, "Codex usage API did not return rate_limit windows");
         }
 
-        string codex5HDisplay = $"{fiveHour.RemainingPercent}%  {fiveHour.ResetTime}";
-        string codexWeeklyDisplay = $"{weekly.RemainingPercent}%  {weekly.ResetLabel}";
+        string codex5HDisplay = $"{fiveHour.RemainingPercent}% [{fiveHour.ResetLabel}]";
+        string codexWeeklyDisplay = $"{weekly.RemainingPercent}% [{weekly.ResetLabel}]";
         return new UsageResponse
         {
             Available = true,
@@ -433,7 +435,22 @@ public sealed class CodexMonitorCollector
     }
 
     /// <summary>
-    /// Formats the weekly reset as a same-day clock or date label.
+    /// Formats the five hour reset as a countdown label.
+    /// </summary>
+    private static string FormatFiveHourResetLabel(long epochSeconds, DateTimeOffset now)
+    {
+        if (epochSeconds <= 0)
+        {
+            return "unknown";
+        }
+
+        TimeSpan remaining = GetRemainingTime(epochSeconds, now);
+        long hours = (long)Math.Floor(remaining.TotalHours);
+        return string.Create(CultureInfo.InvariantCulture, $"{hours}h {remaining.Minutes:D2}m");
+    }
+
+    /// <summary>
+    /// Formats the weekly reset as a countdown label.
     /// </summary>
     private static string FormatWeeklyResetLabel(long epochSeconds, DateTimeOffset now)
     {
@@ -442,13 +459,19 @@ public sealed class CodexMonitorCollector
             return "unknown";
         }
 
-        DateTimeOffset resetAt = DateTimeOffset.FromUnixTimeSeconds(epochSeconds).ToOffset(now.Offset);
-        if (resetAt.Date == now.Date && resetAt > now)
-        {
-            return resetAt.ToString("HH:mm", CultureInfo.InvariantCulture);
-        }
+        TimeSpan remaining = GetRemainingTime(epochSeconds, now);
+        long days = (long)Math.Floor(remaining.TotalDays);
+        return string.Create(CultureInfo.InvariantCulture, $"{days}d {remaining.Hours:D2}h");
+    }
 
-        return resetAt.ToString("MM-dd", CultureInfo.InvariantCulture);
+    /// <summary>
+    /// Gets the non-negative remaining time until a reset epoch.
+    /// </summary>
+    private static TimeSpan GetRemainingTime(long epochSeconds, DateTimeOffset now)
+    {
+        DateTimeOffset resetAt = DateTimeOffset.FromUnixTimeSeconds(epochSeconds).ToOffset(now.Offset);
+        TimeSpan remaining = resetAt - now;
+        return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
     }
 
     /// <summary>

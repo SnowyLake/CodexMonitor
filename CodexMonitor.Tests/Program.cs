@@ -16,8 +16,8 @@ internal static class Program
     private static async Task<int> Main()
     {
         await RunAsync("collects limits and display labels", TestCollectsLimitsAndDisplayLabelsAsync);
-        await RunAsync("uses clock label for same-day weekly reset", TestWeeklyClockLabelAsync);
-        await RunAsync("uses date label for next-day weekly reset", TestNextDayWeeklyDateLabelAsync);
+        await RunAsync("uses countdown label for same-day weekly reset", TestWeeklyCountdownLabelAsync);
+        await RunAsync("uses countdown label for next-day weekly reset", TestNextDayWeeklyCountdownLabelAsync);
         await RunAsync("returns unavailable response without sessions", TestEmptyResponseAsync);
         await RunAsync("collects official Codex quota", TestOfficialQuotaAsync);
         await RunAsync("serves health and usage over HTTP", TestHttpServerAsync);
@@ -51,8 +51,8 @@ internal static class Program
     {
         using TempDirectory temp = new();
         DateTimeOffset now = new(2026, 7, 1, 12, 0, 0, TimeSpan.FromHours(8));
-        long reset5H = now.AddHours(2).ToUnixTimeSeconds();
-        long resetWeekly = now.AddDays(3).ToUnixTimeSeconds();
+        long reset5H = now.AddHours(2).AddMinutes(5).ToUnixTimeSeconds();
+        long resetWeekly = now.AddDays(3).AddHours(4).ToUnixTimeSeconds();
         WriteTokenEvent(temp.Path, now, reset5H, resetWeekly, 12.0, 34.0);
 
         CodexMonitorCollector collector = new(() => now);
@@ -64,15 +64,15 @@ internal static class Program
         AssertEqual(34, response.Limits.Weekly.UsedPercent, "weekly used percent");
         AssertEqual(66, response.Limits.Weekly.RemainingPercent, "weekly remaining percent");
         AssertEqual("plus", response.PlanType, "plan type");
-        AssertEqual("88%  14:00", response.Display.Codex5H, "five hour display");
-        AssertEqual("66%  07-04", response.Display.CodexWeekly, "weekly display");
+        AssertEqual("88% [2h 05m]", response.Display.Codex5H, "five hour display");
+        AssertEqual("66% [3d 04h]", response.Display.CodexWeekly, "weekly display");
         return Task.CompletedTask;
     }
 
     /// <summary>
-    /// Tests weekly reset labels on the current day.
+    /// Tests weekly countdown labels on the current day.
     /// </summary>
-    private static Task TestWeeklyClockLabelAsync()
+    private static Task TestWeeklyCountdownLabelAsync()
     {
         using TempDirectory temp = new();
         DateTimeOffset now = new(2026, 7, 1, 12, 0, 0, TimeSpan.FromHours(8));
@@ -83,14 +83,14 @@ internal static class Program
         CodexMonitorCollector collector = new(() => now);
         UsageResponse response = collector.Collect(temp.Path);
 
-        AssertEqual("60%  15:00", response.Display.CodexWeekly, "weekly clock display");
+        AssertEqual("60% [0d 03h]", response.Display.CodexWeekly, "weekly countdown display");
         return Task.CompletedTask;
     }
 
     /// <summary>
-    /// Tests weekly reset labels on the next day even when below twenty four hours.
+    /// Tests weekly countdown labels on the next day even when below twenty four hours.
     /// </summary>
-    private static Task TestNextDayWeeklyDateLabelAsync()
+    private static Task TestNextDayWeeklyCountdownLabelAsync()
     {
         using TempDirectory temp = new();
         DateTimeOffset now = new(2026, 7, 1, 23, 0, 0, TimeSpan.FromHours(8));
@@ -101,7 +101,7 @@ internal static class Program
         CodexMonitorCollector collector = new(() => now);
         UsageResponse response = collector.Collect(temp.Path);
 
-        AssertEqual("60%  07-02", response.Display.CodexWeekly, "weekly next-day date display");
+        AssertEqual("60% [0d 03h]", response.Display.CodexWeekly, "weekly next-day countdown display");
         return Task.CompletedTask;
     }
 
@@ -145,13 +145,13 @@ internal static class Program
                 {
                     used_percent = 25.0,
                     limit_window_seconds = 18000,
-                    reset_at = now.AddHours(1).ToUnixTimeSeconds(),
+                    reset_at = now.AddHours(1).AddMinutes(15).ToUnixTimeSeconds(),
                 },
                 secondary_window = new
                 {
                     used_percent = 40.0,
                     limit_window_seconds = 604800,
-                    reset_at = now.AddDays(2).ToUnixTimeSeconds(),
+                    reset_at = now.AddDays(2).AddHours(12).ToUnixTimeSeconds(),
                 },
             },
         });
@@ -164,8 +164,8 @@ internal static class Program
         AssertEqual("official_api", response.Source, "official source");
         AssertEqual(75, response.Limits.FiveHour.RemainingPercent, "official five hour remaining percent");
         AssertEqual(60, response.Limits.Weekly.RemainingPercent, "official weekly remaining percent");
-        AssertEqual("75%  13:00", response.Display.Codex5H, "official five hour display");
-        AssertEqual("60%  07-03", response.Display.CodexWeekly, "official weekly display");
+        AssertEqual("75% [1h 15m]", response.Display.Codex5H, "official five hour display");
+        AssertEqual("60% [2d 12h]", response.Display.CodexWeekly, "official weekly display");
         return Task.CompletedTask;
     }
 
@@ -190,7 +190,7 @@ internal static class Program
         string usageJson = await client.GetStringAsync($"http://127.0.0.1:{server.Port}/codex-usage");
         using JsonDocument document = JsonDocument.Parse(usageJson);
         string display = document.RootElement.GetProperty("display").GetProperty("codex_5h").GetString() ?? string.Empty;
-        AssertEqual("90%  13:00", display, "HTTP five hour display");
+        AssertEqual("90% [1h 00m]", display, "HTTP five hour display");
     }
 
     /// <summary>
