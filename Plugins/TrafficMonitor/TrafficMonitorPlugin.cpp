@@ -16,10 +16,8 @@ constexpr wchar_t k_DefaultUsageUrl[] = L"http://127.0.0.1:17890/codex-monitor";
 constexpr wchar_t k_ConfigFileName[] = L"CodexMonitor.ini";
 constexpr wchar_t k_ConfigSection[] = L"CodexMonitor";
 constexpr wchar_t k_ConfigUsageUrlKey[] = L"UsageUrl";
-constexpr wchar_t k_ConfigRequestIntervalSecondsKey[] = L"RequestIntervalSeconds";
-constexpr UINT k_DefaultRequestIntervalSeconds = 60;
-constexpr UINT k_MinimumRequestIntervalSeconds = 1;
-constexpr UINT k_MaximumRequestIntervalSeconds = 86400;
+constexpr wchar_t k_OptionsWindowClassName[] = L"CodexMonitorOptionsWindow";
+constexpr int k_OptionsUrlEditId = 1001;
 constexpr size_t k_DisplayLabelWidth = 12;
 constexpr wchar_t k_FallbackValue[] = L"None";
 
@@ -29,6 +27,15 @@ struct UsageValues
 {
     std::wstring fiveHour;
     std::wstring weekly;
+};
+
+struct OptionsDialogState
+{
+    std::wstring currentUrl;
+    std::wstring updatedUrl;
+    HWND editControl = nullptr;
+    bool completed = false;
+    bool accepted = false;
 };
 
 class WinHttpHandle
@@ -117,16 +124,276 @@ std::wstring ReadUsageUrl()
     return url.data()[0] == L'\0' ? k_DefaultUsageUrl : url.data();
 }
 
-/// Reads the request interval from the plugin configuration file.
-UINT ReadRequestIntervalSeconds()
+/// Writes the bridge usage URL to the plugin configuration file.
+bool WriteUsageUrl(const std::wstring& url)
 {
-    UINT intervalSeconds = GetPrivateProfileIntW(k_ConfigSection, k_ConfigRequestIntervalSecondsKey, k_DefaultRequestIntervalSeconds, GetConfigPath().c_str());
-    if (intervalSeconds < k_MinimumRequestIntervalSeconds || intervalSeconds > k_MaximumRequestIntervalSeconds)
+    return WritePrivateProfileStringW(k_ConfigSection, k_ConfigUsageUrlKey, url.c_str(), GetConfigPath().c_str()) != FALSE;
+}
+
+/// Returns a copy of a string without leading or trailing whitespace.
+std::wstring TrimString(const std::wstring& value)
+{
+    size_t first = value.find_first_not_of(L" \t\r\n");
+    if (first == std::wstring::npos)
     {
-        return k_DefaultRequestIntervalSeconds;
+        return {};
     }
 
-    return intervalSeconds;
+    size_t last = value.find_last_not_of(L" \t\r\n");
+    return value.substr(first, last - first + 1);
+}
+
+/// Returns whether a URL can be used by the WinHTTP backend request.
+bool IsValidUsageUrl(const std::wstring& url)
+{
+    if (url.empty())
+    {
+        return false;
+    }
+
+    std::array<wchar_t, 16> scheme{};
+    std::array<wchar_t, 256> host{};
+    URL_COMPONENTS components{};
+    components.dwStructSize = sizeof(components);
+    components.lpszScheme = scheme.data();
+    components.dwSchemeLength = static_cast<DWORD>(scheme.size());
+    components.lpszHostName = host.data();
+    components.dwHostNameLength = static_cast<DWORD>(host.size());
+
+    if (!WinHttpCrackUrl(url.c_str(), static_cast<DWORD>(url.size()), 0, &components))
+    {
+        return false;
+    }
+
+    return host.data()[0] != L'\0' &&
+        (components.nScheme == INTERNET_SCHEME_HTTP || components.nScheme == INTERNET_SCHEME_HTTPS);
+}
+
+/// Applies the default GUI font to a child window.
+void ApplyDefaultFont(HWND window)
+{
+    if (window != nullptr)
+    {
+        SendMessageW(window, WM_SETFONT, reinterpret_cast<WPARAM>(GetStockObject(DEFAULT_GUI_FONT)), TRUE);
+    }
+}
+
+/// Centers a window over its owner or over the work area.
+void CenterWindow(HWND window, HWND owner)
+{
+    RECT windowRect{};
+    RECT targetRect{};
+    GetWindowRect(window, &windowRect);
+
+    if (owner != nullptr && IsWindow(owner))
+    {
+        GetWindowRect(owner, &targetRect);
+    }
+    else
+    {
+        SystemParametersInfoW(SPI_GETWORKAREA, 0, &targetRect, 0);
+    }
+
+    int width = windowRect.right - windowRect.left;
+    int height = windowRect.bottom - windowRect.top;
+    int x = targetRect.left + ((targetRect.right - targetRect.left) - width) / 2;
+    int y = targetRect.top + ((targetRect.bottom - targetRect.top) - height) / 2;
+    SetWindowPos(window, nullptr, x, y, 0, 0, SWP_NOZORDER | SWP_NOSIZE);
+}
+
+/// Returns the current text in an edit control.
+std::wstring GetWindowTextString(HWND window)
+{
+    int length = GetWindowTextLengthW(window);
+    if (length <= 0)
+    {
+        return {};
+    }
+
+    std::wstring text(static_cast<size_t>(length) + 1, L'\0');
+    GetWindowTextW(window, text.data(), length + 1);
+    text.resize(static_cast<size_t>(length));
+    return text;
+}
+
+/// Creates a child control and applies the default GUI font.
+HWND CreateOptionsControl(const wchar_t* className, const wchar_t* text, DWORD style, int x, int y, int width, int height, HWND parent, HMENU id)
+{
+    HWND control = CreateWindowExW(0, className, text, style | WS_CHILD | WS_VISIBLE, x, y, width, height, parent, id, g_Module, nullptr);
+    ApplyDefaultFont(control);
+    return control;
+}
+
+/// Converts a numeric control identifier to a Win32 menu handle.
+HMENU ControlId(int id)
+{
+    return reinterpret_cast<HMENU>(static_cast<INT_PTR>(id));
+}
+
+/// Completes the options dialog with a cancellation result.
+void CancelOptionsDialog(HWND window, OptionsDialogState* state)
+{
+    state->accepted = false;
+    state->completed = true;
+    DestroyWindow(window);
+}
+
+/// Saves the options dialog URL when valid.
+void AcceptOptionsDialog(HWND window, OptionsDialogState* state)
+{
+    std::wstring url = TrimString(GetWindowTextString(state->editControl));
+    if (!IsValidUsageUrl(url))
+    {
+        MessageBoxW(window, L"Enter a valid HTTP or HTTPS backend URL.", L"Codex Monitor", MB_ICONWARNING | MB_OK);
+        SetFocus(state->editControl);
+        return;
+    }
+
+    state->updatedUrl = url;
+    state->accepted = true;
+    state->completed = true;
+    DestroyWindow(window);
+}
+
+/// Handles messages for the options dialog window.
+LRESULT CALLBACK OptionsWindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    OptionsDialogState* state = reinterpret_cast<OptionsDialogState*>(GetWindowLongPtrW(window, GWLP_USERDATA));
+    switch (message)
+    {
+    case WM_CREATE:
+    {
+        auto createStruct = reinterpret_cast<CREATESTRUCTW*>(lParam);
+        state = reinterpret_cast<OptionsDialogState*>(createStruct->lpCreateParams);
+        SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(state));
+
+        CreateOptionsControl(L"STATIC", L"Backend URL:", 0, 14, 18, 360, 18, window, nullptr);
+        state->editControl = CreateOptionsControl(L"EDIT", state->currentUrl.c_str(), WS_BORDER | WS_TABSTOP | ES_AUTOHSCROLL, 14, 42, 426, 24, window, ControlId(k_OptionsUrlEditId));
+        CreateOptionsControl(L"BUTTON", L"OK", WS_TABSTOP | BS_DEFPUSHBUTTON, 284, 84, 74, 26, window, ControlId(IDOK));
+        CreateOptionsControl(L"BUTTON", L"Cancel", WS_TABSTOP, 366, 84, 74, 26, window, ControlId(IDCANCEL));
+        return 0;
+    }
+    case WM_COMMAND:
+        if (state != nullptr && LOWORD(wParam) == IDOK)
+        {
+            AcceptOptionsDialog(window, state);
+            return 0;
+        }
+
+        if (state != nullptr && LOWORD(wParam) == IDCANCEL)
+        {
+            CancelOptionsDialog(window, state);
+            return 0;
+        }
+
+        break;
+    case WM_KEYDOWN:
+        if (state != nullptr && wParam == VK_ESCAPE)
+        {
+            CancelOptionsDialog(window, state);
+            return 0;
+        }
+
+        if (state != nullptr && wParam == VK_RETURN)
+        {
+            AcceptOptionsDialog(window, state);
+            return 0;
+        }
+
+        break;
+    case WM_CLOSE:
+        if (state != nullptr)
+        {
+            CancelOptionsDialog(window, state);
+            return 0;
+        }
+
+        break;
+    }
+
+    return DefWindowProcW(window, message, wParam, lParam);
+}
+
+/// Registers the options dialog window class.
+bool RegisterOptionsWindowClass()
+{
+    WNDCLASSEXW windowClass{};
+    windowClass.cbSize = sizeof(windowClass);
+    windowClass.lpfnWndProc = OptionsWindowProc;
+    windowClass.hInstance = g_Module;
+    windowClass.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+    windowClass.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_BTNFACE + 1);
+    windowClass.lpszClassName = k_OptionsWindowClassName;
+
+    return RegisterClassExW(&windowClass) != 0 || GetLastError() == ERROR_CLASS_ALREADY_EXISTS;
+}
+
+/// Shows the backend URL options dialog.
+bool ShowUsageUrlOptionsDialog(HWND owner, std::wstring& url)
+{
+    owner = owner != nullptr && IsWindow(owner) ? owner : nullptr;
+
+    if (!RegisterOptionsWindowClass())
+    {
+        MessageBoxW(owner, L"Unable to open the Codex Monitor options dialog.", L"Codex Monitor", MB_ICONERROR | MB_OK);
+        return false;
+    }
+
+    OptionsDialogState state{};
+    state.currentUrl = url;
+    state.updatedUrl = url;
+
+    HWND window = CreateWindowExW(
+        WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT,
+        k_OptionsWindowClassName,
+        L"Codex Monitor Options",
+        WS_CAPTION | WS_SYSMENU | WS_POPUP,
+        CW_USEDEFAULT,
+        CW_USEDEFAULT,
+        470,
+        154,
+        owner,
+        nullptr,
+        g_Module,
+        &state);
+    if (window == nullptr)
+    {
+        MessageBoxW(owner, L"Unable to open the Codex Monitor options dialog.", L"Codex Monitor", MB_ICONERROR | MB_OK);
+        return false;
+    }
+
+    CenterWindow(window, owner);
+    if (owner != nullptr)
+    {
+        EnableWindow(owner, FALSE);
+    }
+
+    ShowWindow(window, SW_SHOW);
+    UpdateWindow(window);
+    SetFocus(state.editControl);
+
+    MSG message{};
+    while (!state.completed && GetMessageW(&message, nullptr, 0, 0) > 0)
+    {
+        if (!IsDialogMessageW(window, &message))
+        {
+            TranslateMessage(&message);
+            DispatchMessageW(&message);
+        }
+    }
+
+    if (owner != nullptr)
+    {
+        EnableWindow(owner, TRUE);
+        SetForegroundWindow(owner);
+    }
+
+    if (state.accepted)
+    {
+        url = state.updatedUrl;
+    }
+
+    return state.accepted;
 }
 
 /// Decodes a JSON string escape sequence into a byte string.
@@ -382,9 +649,7 @@ public:
     CodexMonitorPlugin()
         : m_FiveHourItem(L"Codex 5h", L"CodexMonitor5H", L"Codex 5h", L"     100% [4h 59m]"),
           m_WeeklyItem(L"Codex Weekly", L"CodexMonitorWeekly", L"Codex Weekly", L" 100% [6d 23h]"),
-          m_Tooltip(L"CodexMonitor waiting for data"),
-          m_LastRequestTick(0),
-          m_HasRequested(false)
+          m_Tooltip(L"CodexMonitor waiting for data")
     {
     }
 
@@ -405,11 +670,6 @@ public:
     /// Refreshes display data from the local CodexMonitor service.
     void DataRequired() override
     {
-        if (!ShouldRequestNow())
-        {
-            return;
-        }
-
         UsageValues values;
         if (!FetchUsageValues(values))
         {
@@ -422,6 +682,31 @@ public:
         m_FiveHourItem.SetValue(values.fiveHour);
         m_WeeklyItem.SetValue(values.weekly);
         m_Tooltip = L"Codex 5h: " + values.fiveHour + L"\nCodex Weekly: " + values.weekly;
+    }
+
+    /// Shows plugin options for editing the backend URL.
+    OptionReturn ShowOptionsDialog(void* hParent) override
+    {
+        std::wstring originalUrl = ReadUsageUrl();
+        std::wstring updatedUrl = originalUrl;
+        if (!ShowUsageUrlOptionsDialog(static_cast<HWND>(hParent), updatedUrl))
+        {
+            return OR_OPTION_UNCHANGED;
+        }
+
+        if (updatedUrl == originalUrl)
+        {
+            return OR_OPTION_UNCHANGED;
+        }
+
+        if (!WriteUsageUrl(updatedUrl))
+        {
+            MessageBoxW(static_cast<HWND>(hParent), L"Unable to save Codex Monitor options.", L"Codex Monitor", MB_ICONERROR | MB_OK);
+            return OR_OPTION_UNCHANGED;
+        }
+
+        m_Tooltip = L"CodexMonitor backend URL updated";
+        return OR_OPTION_CHANGED;
     }
 
     /// Returns plugin metadata by index.
@@ -453,27 +738,9 @@ public:
     }
 
 private:
-    /// Returns true when the configured request interval has elapsed.
-    bool ShouldRequestNow()
-    {
-        ULONGLONG currentTick = GetTickCount64();
-        UINT intervalSeconds = ReadRequestIntervalSeconds();
-        ULONGLONG intervalMilliseconds = static_cast<ULONGLONG>(intervalSeconds) * 1000;
-        if (!m_HasRequested || currentTick - m_LastRequestTick >= intervalMilliseconds)
-        {
-            m_LastRequestTick = currentTick;
-            m_HasRequested = true;
-            return true;
-        }
-
-        return false;
-    }
-
     CodexUsageItem m_FiveHourItem;
     CodexUsageItem m_WeeklyItem;
     std::wstring m_Tooltip;
-    ULONGLONG m_LastRequestTick;
-    bool m_HasRequested;
 };
 
 /// Returns the plugin singleton instance.

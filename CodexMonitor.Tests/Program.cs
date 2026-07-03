@@ -230,7 +230,8 @@ internal static class Program
         AssertTrue(File.Exists(configPath), "plugin config should exist");
         string content = File.ReadAllText(configPath);
         AssertTrue(content.Contains("http://127.0.0.1:17999/codex-monitor", StringComparison.Ordinal), "plugin config should include bridge URL");
-        AssertTrue(content.Contains("RequestIntervalSeconds=60", StringComparison.Ordinal), "plugin config should include request interval");
+        AssertTrue(!content.Contains("{{", StringComparison.Ordinal), "plugin config should not include template placeholders");
+        AssertTrue(!content.Contains("RequestIntervalSeconds", StringComparison.Ordinal), "plugin config should not include request interval");
         return Task.CompletedTask;
     }
 

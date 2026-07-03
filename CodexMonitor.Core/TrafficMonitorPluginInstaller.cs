@@ -2,11 +2,9 @@ namespace CodexMonitor.Core;
 
 public static class TrafficMonitorPluginInstaller
 {
-    private const string k_BridgeUrlToken = "{{bridge_url}}";
     private const string k_FallbackPluginConfig = """
 [CodexMonitor]
-UsageUrl={{bridge_url}}
-RequestIntervalSeconds=60
+UsageUrl=http://127.0.0.1:17890/codex-monitor
 """;
 
     /// <summary>
@@ -38,7 +36,33 @@ RequestIntervalSeconds=60
     {
         int normalizedPort = port is > 0 and <= 65535 ? port : CodexMonitorDefaults.Port;
         string bridgeUrl = $"http://127.0.0.1:{normalizedPort}{CodexMonitorDefaults.UsageEndpointPath}";
-        return ReadTemplateConfig().Replace(k_BridgeUrlToken, bridgeUrl, StringComparison.Ordinal);
+        return SetUsageUrl(ReadTemplateConfig(), bridgeUrl);
+    }
+
+    /// <summary>
+    /// Sets the backend URL in the TrafficMonitor plugin configuration content.
+    /// </summary>
+    private static string SetUsageUrl(string content, string bridgeUrl)
+    {
+        string normalizedContent = content.Replace("\r\n", "\n", StringComparison.Ordinal);
+        string[] lines = normalizedContent.TrimEnd('\n').Split('\n');
+        bool updated = false;
+        for (int index = 0; index < lines.Length; index++)
+        {
+            if (lines[index].StartsWith("UsageUrl=", StringComparison.Ordinal))
+            {
+                lines[index] = $"UsageUrl={bridgeUrl}";
+                updated = true;
+            }
+        }
+
+        List<string> outputLines = [.. lines];
+        if (!updated)
+        {
+            outputLines.Add($"UsageUrl={bridgeUrl}");
+        }
+
+        return string.Join(Environment.NewLine, outputLines) + Environment.NewLine;
     }
 
     /// <summary>
