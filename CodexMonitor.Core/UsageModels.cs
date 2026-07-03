@@ -10,7 +10,6 @@ public static class CodexMonitorDefaults
     public const int MinimumRefreshIntervalMinutes = 1;
     public const int MaximumRefreshIntervalMinutes = 1440;
     public const string AppName = "CodexMonitor";
-    public const string SettingsDirectoryName = "CodexMonitor";
     public const string SettingsFileName = "settings.json";
     public const string StartupRunValueName = "CodexMonitorTray";
     public const string PluginFileName = "CodexMonitor.json";

@@ -86,6 +86,8 @@
 
 程序会读取本机 Codex 登录信息来请求官方额度数据. 这些 token 不会显示在 LiteMonitor 中, 也不会通过本地接口返回.
 
+程序设置保存在 `CodexMonitor.exe` 同级目录下的 `settings.json`.
+
 请不要把自己的 Codex 登录文件, 设置文件, 或调试日志上传到公开位置.
 
 ## 常见问题

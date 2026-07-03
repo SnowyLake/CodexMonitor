@@ -23,6 +23,7 @@ internal static class Program
         await RunAsync("serves health and usage over HTTP", TestHttpServerAsync);
         await RunAsync("installs LiteMonitor plugin config", TestPluginInstallAsync);
         await RunAsync("installs TrafficMonitor plugin", TestTrafficMonitorPluginInstallAsync);
+        await RunAsync("stores settings beside the executable", TestSettingsStorePathAsync);
         await RunAsync("normalizes settings refresh interval", TestSettingsNormalizeAsync);
         Console.WriteLine(s_Failures == 0 ? "All C# tests passed." : $"C# tests failed: {s_Failures}");
         return s_Failures == 0 ? 0 : 1;
@@ -188,7 +189,7 @@ internal static class Program
         string health = await client.GetStringAsync($"http://127.0.0.1:{server.Port}/health");
         AssertTrue(health.Contains("\"ok\":true", StringComparison.Ordinal), "health response");
 
-        string usageJson = await client.GetStringAsync($"http://127.0.0.1:{server.Port}/codex-usage");
+        string usageJson = await client.GetStringAsync($"http://127.0.0.1:{server.Port}{CodexMonitorDefaults.UsageEndpointPath}");
         using JsonDocument document = JsonDocument.Parse(usageJson);
         string display = document.RootElement.GetProperty("display").GetProperty("codex_5h").GetString() ?? string.Empty;
         AssertEqual("90% [1h 00m]", display, "HTTP five hour display");
@@ -203,10 +204,11 @@ internal static class Program
         File.WriteAllText(Path.Combine(temp.Path, "LiteMonitor.exe"), string.Empty);
         Directory.CreateDirectory(Path.Combine(temp.Path, "resources", "plugins"));
 
-        string targetPath = LiteMonitorPluginInstaller.Install(temp.Path);
+        string targetPath = LiteMonitorPluginInstaller.Install(temp.Path, 17998);
         AssertTrue(File.Exists(targetPath), "plugin file should exist");
         string content = File.ReadAllText(targetPath);
         AssertTrue(content.Contains("Codex Weekly", StringComparison.Ordinal), "plugin content should include weekly output");
+        AssertTrue(content.Contains("http://127.0.0.1:17998/codex-monitor", StringComparison.Ordinal), "plugin content should include bridge URL");
         return Task.CompletedTask;
     }
 
@@ -225,7 +227,30 @@ internal static class Program
         string configPath = Path.Combine(temp.Path, "plugins", CodexMonitorDefaults.TrafficMonitorPluginConfigFileName);
         AssertTrue(File.Exists(configPath), "plugin config should exist");
         string content = File.ReadAllText(configPath);
-        AssertTrue(content.Contains("http://127.0.0.1:17999/codex-usage", StringComparison.Ordinal), "plugin config should include bridge URL");
+        AssertTrue(content.Contains("http://127.0.0.1:17999/codex-monitor", StringComparison.Ordinal), "plugin config should include bridge URL");
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Tests storing settings in the application directory.
+    /// </summary>
+    private static Task TestSettingsStorePathAsync()
+    {
+        using TempDirectory temp = new();
+        SettingsStore store = new(temp.Path);
+        AppSettings settings = new()
+        {
+            Port = 17997,
+            RefreshIntervalMinutes = 7,
+        };
+
+        store.Save(settings);
+
+        string expectedPath = Path.Combine(temp.Path, CodexMonitorDefaults.SettingsFileName);
+        AssertEqual(expectedPath, store.SettingsPath, "settings path");
+        AssertTrue(File.Exists(expectedPath), "settings file should exist beside executable");
+        AssertTrue(!Directory.Exists(Path.Combine(temp.Path, "CodexMonitor")), "settings directory should not exist");
+        AssertEqual(17997, store.Load().Port, "saved settings port");
         return Task.CompletedTask;
     }
 

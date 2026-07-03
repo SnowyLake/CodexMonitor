@@ -48,12 +48,19 @@ public sealed class SettingsStore
     public string SettingsPath { get; }
 
     /// <summary>
-    /// Creates a settings store under the current user's app data directory.
+    /// Creates a settings store next to the executable.
     /// </summary>
     public SettingsStore()
+        : this(AppContext.BaseDirectory)
     {
-        string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        SettingsPath = Path.Combine(appData, CodexMonitorDefaults.SettingsDirectoryName, CodexMonitorDefaults.SettingsFileName);
+    }
+
+    /// <summary>
+    /// Creates a settings store under the specified application directory.
+    /// </summary>
+    public SettingsStore(string appDirectory)
+    {
+        SettingsPath = Path.Combine(appDirectory, CodexMonitorDefaults.SettingsFileName);
     }
 
     /// <summary>
@@ -82,7 +89,7 @@ public sealed class SettingsStore
     }
 
     /// <summary>
-    /// Saves settings to the app data directory.
+    /// Saves settings next to the executable.
     /// </summary>
     public void Save(AppSettings settings)
     {
