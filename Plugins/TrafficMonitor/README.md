@@ -40,6 +40,7 @@ Plugins\TrafficMonitor\Builds\x64\Release\CodexMonitor.dll
 ```ini
 [CodexMonitor]
 UsageUrl=http://127.0.0.1:17890/codex-monitor
+RequestIntervalSeconds=60
 ```
 
-如果 CodexMonitor 的服务端口变更, 重新点击 `Install TrafficMonitor Plugin` 即可同步更新这个配置.
+`RequestIntervalSeconds` 控制插件向 CodexMonitor 桥接服务发起请求的最小间隔, 默认值为 `60`, 单位为秒. 如果 CodexMonitor 的服务端口变更, 重新点击 `Install TrafficMonitor Plugin` 即可同步更新这个配置.

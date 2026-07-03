@@ -3,9 +3,10 @@ namespace CodexMonitor.Core;
 public static class TrafficMonitorPluginInstaller
 {
     private const string k_BridgeUrlToken = "{{bridge_url}}";
-    private const string k_FallbackPluginConfig = """
+private const string k_FallbackPluginConfig = """
 [CodexMonitor]
 UsageUrl={{bridge_url}}
+RequestIntervalSeconds=60
 """;
 
     /// <summary>

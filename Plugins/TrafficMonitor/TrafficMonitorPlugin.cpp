@@ -17,6 +17,10 @@ constexpr wchar_t k_DefaultUsageUrl[] = L"http://127.0.0.1:17890/codex-monitor";
 constexpr wchar_t k_ConfigFileName[] = L"CodexMonitor.ini";
 constexpr wchar_t k_ConfigSection[] = L"CodexMonitor";
 constexpr wchar_t k_ConfigUsageUrlKey[] = L"UsageUrl";
+constexpr wchar_t k_ConfigRequestIntervalSecondsKey[] = L"RequestIntervalSeconds";
+constexpr UINT k_DefaultRequestIntervalSeconds = 60;
+constexpr UINT k_MinimumRequestIntervalSeconds = 1;
+constexpr UINT k_MaximumRequestIntervalSeconds = 86400;
 
 HMODULE g_Module = nullptr;
 
@@ -110,6 +114,18 @@ std::wstring ReadUsageUrl()
     std::array<wchar_t, 2048> url{};
     GetPrivateProfileStringW(k_ConfigSection, k_ConfigUsageUrlKey, k_DefaultUsageUrl, url.data(), static_cast<DWORD>(url.size()), GetConfigPath().c_str());
     return url.data()[0] == L'\0' ? k_DefaultUsageUrl : url.data();
+}
+
+/// Reads the request interval from the plugin configuration file.
+UINT ReadRequestIntervalSeconds()
+{
+    UINT intervalSeconds = GetPrivateProfileIntW(k_ConfigSection, k_ConfigRequestIntervalSecondsKey, k_DefaultRequestIntervalSeconds, GetConfigPath().c_str());
+    if (intervalSeconds < k_MinimumRequestIntervalSeconds || intervalSeconds > k_MaximumRequestIntervalSeconds)
+    {
+        return k_DefaultRequestIntervalSeconds;
+    }
+
+    return intervalSeconds;
 }
 
 /// Decodes a JSON string escape sequence into a byte string.
@@ -345,7 +361,9 @@ public:
     CodexMonitorPlugin()
         : m_FiveHourItem(L"Codex 5h", L"CodexMonitor5H", L"Codex 5h", L"88% [2h 45m]"),
           m_WeeklyItem(L"Codex Weekly", L"CodexMonitorWeekly", L"Codex Weekly", L"66% [3d 04h]"),
-          m_Tooltip(L"CodexMonitor waiting for data")
+          m_Tooltip(L"CodexMonitor waiting for data"),
+          m_LastRequestTick(0),
+          m_HasRequested(false)
     {
     }
 
@@ -366,6 +384,11 @@ public:
     /// Refreshes display data from the local CodexMonitor service.
     void DataRequired() override
     {
+        if (!ShouldRequestNow())
+        {
+            return;
+        }
+
         UsageValues values;
         if (!FetchUsageValues(values))
         {
@@ -409,9 +432,27 @@ public:
     }
 
 private:
+    /// Returns true when the configured request interval has elapsed.
+    bool ShouldRequestNow()
+    {
+        ULONGLONG currentTick = GetTickCount64();
+        UINT intervalSeconds = ReadRequestIntervalSeconds();
+        ULONGLONG intervalMilliseconds = static_cast<ULONGLONG>(intervalSeconds) * 1000;
+        if (!m_HasRequested || currentTick - m_LastRequestTick >= intervalMilliseconds)
+        {
+            m_LastRequestTick = currentTick;
+            m_HasRequested = true;
+            return true;
+        }
+
+        return false;
+    }
+
     CodexUsageItem m_FiveHourItem;
     CodexUsageItem m_WeeklyItem;
     std::wstring m_Tooltip;
+    ULONGLONG m_LastRequestTick;
+    bool m_HasRequested;
 };
 
 /// Returns the plugin singleton instance.
