@@ -8,7 +8,7 @@ Set-StrictMode -Version Latest
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptRoot
 $projectPath = Join-Path $repoRoot "CodexMonitor.App\CodexMonitor.App.csproj"
-$publishDir = Join-Path $repoRoot "Builds\Release\Publish\win-x64"
+$publishDir = Join-Path $repoRoot "Builds\Output\win-x64"
 $appFileName = "CodexMonitor.exe"
 
 function Invoke-AppPublish {

@@ -11,8 +11,7 @@ Set-StrictMode -Version Latest
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptRoot
 $projectPath = Join-Path $repoRoot "CodexMonitor.App\CodexMonitor.App.csproj"
-$releaseRoot = Join-Path $repoRoot "Builds\Release"
-$stagingRoot = Join-Path $releaseRoot "Package"
+$releaseBaseRoot = Join-Path $repoRoot "Builds\Release"
 $runtime = "win-x64"
 $appFileName = "CodexMonitor.exe"
 
@@ -35,8 +34,9 @@ function Get-NormalizedVersion {
 }
 
 $normalizedVersion = Get-NormalizedVersion $Version
+$releaseRoot = Join-Path $releaseBaseRoot $normalizedVersion
 $packageName = "CodexMonitor-$normalizedVersion-$runtime.zip"
-$stagingDir = Join-Path $stagingRoot "CodexMonitor-$normalizedVersion-$runtime"
+$stagingDir = Join-Path $releaseRoot "CodexMonitor-$normalizedVersion-$runtime"
 $packagePath = Join-Path $releaseRoot $packageName
 
 function Remove-PathWithRetry {

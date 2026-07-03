@@ -2,9 +2,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CodexMonitor.Core\CodexMonitor.Core.csproj" />
-    <EmbeddedResource Include="..\Resources\icon.ico" Link="Resources\icon.ico" />
-    <EmbeddedResource Include="..\Resources\icon.png" Link="Resources\icon.png" />
-    <None Include="..\Plugins\TrafficMonitor\Builds\x64\Release\CodexMonitorTrafficMonitor.dll" Link="Plugins\TrafficMonitor\CodexMonitorTrafficMonitor.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('..\Plugins\TrafficMonitor\Builds\x64\Release\CodexMonitorTrafficMonitor.dll')" />
+    <Content Include="..\Resources\icon.ico" Link="Resources\icon.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+    <Content Include="..\Resources\icon.png" Link="Resources\icon.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+    <Content Include="..\Plugins\LiteMonitor\CodexMonitor.json" Link="Plugins\LiteMonitor\CodexMonitor.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+    <Content Include="..\Plugins\TrafficMonitor\CodexMonitor.ini" Link="Plugins\TrafficMonitor\CodexMonitor.ini" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+    <Content Include="..\Plugins\TrafficMonitor\Builds\x64\Release\CodexMonitor.dll" Link="Plugins\TrafficMonitor\CodexMonitor.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" Condition="Exists('..\Plugins\TrafficMonitor\Builds\x64\Release\CodexMonitor.dll')" />
   </ItemGroup>
 
   <PropertyGroup>

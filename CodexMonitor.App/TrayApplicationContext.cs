@@ -212,7 +212,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
                 m_SettingsStore.Save(m_Settings);
             }
 
-            string targetPath = LiteMonitorPluginInstaller.Install(m_Settings.LiteMonitorDir);
+            string targetPath = LiteMonitorPluginInstaller.Install(m_Settings.LiteMonitorDir, m_Settings.Port);
             RefreshSettingsStatus();
             MessageBox.Show($"Installed LiteMonitor plugin:\n{targetPath}", "CodexMonitor", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
@@ -334,11 +334,11 @@ internal sealed class TrayApplicationContext : ApplicationContext
     }
 
     /// <summary>
-    /// Loads the application icon from embedded resources.
+    /// Loads the application icon from the published resources directory.
     /// </summary>
     private static Icon LoadApplicationIcon()
     {
-        Stream? stream = typeof(TrayApplicationContext).Assembly.GetManifestResourceStream("CodexMonitor.App.Resources.icon.ico");
-        return stream == null ? (Icon)SystemIcons.Application.Clone() : new Icon(stream);
+        string iconPath = Path.Combine(AppContext.BaseDirectory, "Resources", "icon.ico");
+        return File.Exists(iconPath) ? new Icon(iconPath) : (Icon)SystemIcons.Application.Clone();
     }
 }

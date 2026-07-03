@@ -41,14 +41,14 @@
 
 1. 打开项目的 GitHub Releases 页面.
 2. 下载 `CodexMonitor-vX.Y.Z-win-x64.zip`.
-3. 解压后运行 `CodexMonitor.exe`.
+3. 解压后运行发布目录里的 `CodexMonitor.exe`.
 4. 首次启动会打开设置窗口.
 5. 确认 LiteMonitor 或 TrafficMonitor 路径正确, 然后点击对应的安装插件按钮.
 6. 重启对应监控器, 或在插件页面重载插件.
 
 如果已经登录过 Codex, 通常不需要额外配置账号. 如果程序无法读取额度, 请先确认本机 Codex 可以正常使用.
 
-TrafficMonitor 插件需要先构建原生 DLL:
+从 Release zip 解压时, 发布目录会包含 `Resources` 和 `Plugins` 模板目录. TrafficMonitor 插件如果从源码运行, 需要先构建原生 DLL:
 
 ```powershell
 .\Plugins\TrafficMonitor\Build-TrafficMonitorPlugin.ps1
@@ -102,9 +102,9 @@ TrafficMonitor 插件需要先构建原生 DLL:
 
 通常是本机没有可用的 Codex 登录信息, 或当前网络无法请求额度接口. 先确认 Codex 本身能正常使用, 再点击 `Refresh Now`.
 
-### 可以只运行单个 exe 吗
+### 可以只复制单个 exe 吗
 
-可以. 发布包里只需要运行 `CodexMonitor.exe`.
+不建议. 程序主体仍然发布为单文件 `CodexMonitor.exe`, 但 `Resources` 和 `Plugins` 目录会作为外部资源随包发布, 这样托盘图标和插件模板才能正常读取.
 
 ## 开发
 
@@ -117,6 +117,8 @@ TrafficMonitor 插件需要先构建原生 DLL:
 - `Plugins/TrafficMonitor`: TrafficMonitor 插件源码和构建脚本.
 - `Scripts`: 发布, 重启, release 打包脚本.
 - `Builds`: 本地构建和发布产物目录, 不提交生成内容.
+  - `Builds/Output/win-x64`: 本地发布和重启预览输出.
+  - `Builds/Release/vX.Y.Z`: 正式 release 的版本化目录和 zip.
 
 开发验证命令:
 
