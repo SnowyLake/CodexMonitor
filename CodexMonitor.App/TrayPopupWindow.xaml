@@ -73,14 +73,6 @@
                 <Setter Property="VerticalContentAlignment" Value="Center" />
             </Style>
 
-            <Style x:Key="SettingsNumberTextBoxStyle"
-                   BasedOn="{StaticResource SettingsTextBoxStyle}"
-                   TargetType="{x:Type TextBox}">
-                <Setter Property="TextAlignment" Value="Center" />
-                <Setter Property="HorizontalContentAlignment" Value="Center" />
-                <Setter Property="local:NumericInput.IsEnabled" Value="True" />
-            </Style>
-
             <Style x:Key="SettingsComboBoxStyle"
                    BasedOn="{StaticResource {x:Type ComboBox}}"
                    TargetType="{x:Type ComboBox}">
@@ -447,10 +439,12 @@
                                            Text="Minutes between updates"
                                            Style="{StaticResource SettingsRowMetaStyle}" />
                             </StackPanel>
-                            <TextBox Grid.Column="1"
-                                     VerticalAlignment="Center"
-                                     Text="{Binding RefreshIntervalText, UpdateSourceTrigger=PropertyChanged}"
-                                     Style="{StaticResource SettingsNumberTextBoxStyle}" />
+                            <local:NumericUpDown Grid.Column="1"
+                                                 VerticalAlignment="Center"
+                                                 Minimum="1"
+                                                 Maximum="1440"
+                                                 DefaultValue="1"
+                                                 Value="{Binding RefreshIntervalText, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
                         </Grid>
 
                         <Grid Margin="0,0,0,16">
@@ -562,10 +556,12 @@
                                            Text="{Binding ServiceStatus}"
                                            Style="{StaticResource SettingsRowMetaStyle}" />
                             </StackPanel>
-                            <TextBox Grid.Column="1"
-                                     VerticalAlignment="Center"
-                                     Text="{Binding PortText, UpdateSourceTrigger=PropertyChanged}"
-                                     Style="{StaticResource SettingsNumberTextBoxStyle}" />
+                            <local:NumericUpDown Grid.Column="1"
+                                                 VerticalAlignment="Center"
+                                                 Minimum="1"
+                                                 Maximum="65535"
+                                                 DefaultValue="17890"
+                                                 Value="{Binding PortText, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
                         </Grid>
                     </StackPanel>
                 </ScrollViewer>
