@@ -7,13 +7,14 @@
 - [目录结构](#目录结构)
 - [构建与输出](#构建与输出)
 - [开发规则](#开发规则)
+- [运行行为](#运行行为)
 - [验证命令](#验证命令)
 - [发布流程](#发布流程)
 - [注意事项](#注意事项)
 
 ## 项目概览
 
-`CodexMonitor` 是一个 C#/.NET Windows 托盘应用, 用于读取 Codex OAuth 凭据并请求 ChatGPT 官方额度接口, 然后通过本地 HTTP 服务向 LiteMonitor 插件提供 Codex 额度显示数据. 当 OAuth 凭据不存在或无效时, 额度显示为不可用, 不再回退读取本地 session 数据.
+`CodexMonitor` 是一个 C#/.NET Windows 托盘应用, 用于读取 Codex OAuth 凭据并请求 ChatGPT 官方额度接口, 然后通过本地 HTTP 服务向 LiteMonitor 和 TrafficMonitor 插件提供 Codex 额度显示数据. 当 OAuth 凭据不存在或无效时, 额度显示为不可用, 不再回退读取本地 session 数据.
 
 ## 目录结构
 
@@ -22,7 +23,7 @@
 - `CodexMonitor.Tests`: 自包含 C# 测试运行器.
 - `Plugins/LiteMonitor`: LiteMonitor 插件定义, 当前插件文件为 `CodexMonitor.json`.
 - `Plugins/TrafficMonitor`: TrafficMonitor 插件源码和配置模板.
-- `Scripts`: 发布, 重启, release 打包, 和 TrafficMonitor 插件构建脚本.
+- `Scripts`: 发布, 重启, release 打包, TrafficMonitor 插件构建脚本, 以及发布脚本共享逻辑.
 - `Builds`: 发布产物目录, 只提交 `.gitkeep`, 其余内容由 `.gitignore` 忽略.
 - `Directory.Build.props` 和 `Directory.Build.targets`: 全局 MSBuild 默认配置和默认编译项排除规则.
 
@@ -41,7 +42,19 @@
 - 修改 C# 代码时, namespace 必须与项目文件夹名对齐, 即 `CodexMonitor.Core`, `CodexMonitor.App`, `CodexMonitor.Tests`.
 - LiteMonitor 插件模板文件名应保持为 `Plugins/LiteMonitor/CodexMonitor.json`.
 - TrafficMonitor 插件模板文件名应保持为 `Plugins/TrafficMonitor/CodexMonitor.ini`.
-- 如果修改插件模板, 同步检查 `CodexMonitor.Core/LiteMonitorPluginInstaller.cs` 和 `CodexMonitor.Core/TrafficMonitorPluginInstaller.cs` 中的兜底模板.
+- 插件模板作为发布内容复制到输出目录. 安装器不再内置兜底模板, 如果模板缺失应直接报错.
+- 构造本地桥接 URL 时优先使用 `CodexMonitorDefaults.Host`, `CodexMonitorDefaults.DefaultBridgeUrl`, `CodexMonitorDefaults.DefaultBridgeTextUrl`, `CodexMonitorDefaults.BuildBridgeUrl`, 和 `CodexMonitorDefaults.BuildBridgeTextUrl`, 不要散落硬编码 `127.0.0.1` 或默认路径.
+- LiteMonitor 使用 JSON 接口 `CodexMonitorDefaults.UsageEndpointPath`, 当前为 `/codex-monitor`.
+- TrafficMonitor 原生插件使用文本接口 `CodexMonitorDefaults.UsageTextEndpointPath`, 当前为 `/codex-monitor.txt`, 两行依次为 5 小时额度和 Weekly 额度.
+- LiteMonitor 和 TrafficMonitor 的自动定位共享 `CodexMonitor.Core/MonitorLocator.cs`, 不要重新复制磁盘搜索逻辑.
+- `Scripts/Publish-App.ps1`, `Scripts/Restart-App.ps1`, 和 `Scripts/Package-Release.ps1` 共享 `Scripts/Publish-Shared.ps1`, 修改发布参数或清理逻辑时优先改共享脚本.
+
+## 运行行为
+
+- 应用启动后常驻 Windows 托盘. Windows 不提供受支持 API 让应用首次启动时强制 pin 到托盘可见区, 不要通过注册表或系统内部数据 hack 托盘 pin 状态.
+- 当 `settings.json` 不存在时视为首次启动. 首次启动保存默认设置后自动打开主面板, 不跳转设置页.
+- 通过 mutex 保证单实例. 用户再次启动 `CodexMonitor.exe` 时, 新进程只通过 `showPanelEvent` 通知现有进程打开主面板, 然后退出.
+- 设置页已经合入托盘弹窗面板. 旧的 `showSettingsEvent` 命名已废弃, 后续不要恢复这个命名.
 
 ## 验证命令
 

@@ -43,6 +43,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         if (!settingsExists)
         {
             m_SettingsStore.Save(m_Settings);
+            m_SynchronizationContext.Post(_ => ShowPanel(), null);
         }
     }
 
