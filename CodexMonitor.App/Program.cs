@@ -6,7 +6,7 @@ namespace CodexMonitor.App;
 internal static class Program
 {
     private const string k_MutexName = CodexMonitorDefaults.AppName + "TrayMutex";
-    private const string k_ShowSettingsEventName = CodexMonitorDefaults.AppName + "TrayShowSettings";
+    private const string k_ShowPanelEventName = CodexMonitorDefaults.AppName + "TrayShowPanel";
 
     /// <summary>
     /// Starts the tray application or signals an existing instance.
@@ -21,9 +21,9 @@ internal static class Program
             return;
         }
 
-        using EventWaitHandle showSettingsEvent = new(false, EventResetMode.AutoReset, k_ShowSettingsEventName);
+        using EventWaitHandle showPanelEvent = new(false, EventResetMode.AutoReset, k_ShowPanelEventName);
         ApplicationConfiguration.Initialize();
-        Application.Run(new TrayApplicationContext(showSettingsEvent));
+        Application.Run(new TrayApplicationContext(showPanelEvent));
     }
 
     /// <summary>
@@ -33,7 +33,7 @@ internal static class Program
     {
         try
         {
-            using EventWaitHandle existingEvent = EventWaitHandle.OpenExisting(k_ShowSettingsEventName);
+            using EventWaitHandle existingEvent = EventWaitHandle.OpenExisting(k_ShowPanelEventName);
             existingEvent.Set();
         }
         catch (WaitHandleCannotBeOpenedException)

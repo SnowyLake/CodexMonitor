@@ -6,7 +6,7 @@ namespace CodexMonitor.App;
 
 internal sealed class TrayApplicationContext : ApplicationContext
 {
-    private readonly EventWaitHandle m_ShowSettingsEvent;
+    private readonly EventWaitHandle m_ShowPanelEvent;
     private readonly SettingsStore m_SettingsStore;
     private readonly CodexMonitorCollector m_Collector;
     private readonly UsageCache m_UsageCache = new();
@@ -25,9 +25,9 @@ internal sealed class TrayApplicationContext : ApplicationContext
     /// <summary>
     /// Creates the tray application context.
     /// </summary>
-    public TrayApplicationContext(EventWaitHandle showSettingsEvent)
+    public TrayApplicationContext(EventWaitHandle showPanelEvent)
     {
-        m_ShowSettingsEvent = showSettingsEvent;
+        m_ShowPanelEvent = showPanelEvent;
         m_SynchronizationContext = SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext();
         m_SettingsStore = new SettingsStore();
         m_Collector = new CodexMonitorCollector();
@@ -130,7 +130,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         {
             while (!m_SignalCancellation.IsCancellationRequested)
             {
-                if (m_ShowSettingsEvent.WaitOne(TimeSpan.FromMilliseconds(500)))
+                if (m_ShowPanelEvent.WaitOne(TimeSpan.FromMilliseconds(500)))
                 {
                     m_SynchronizationContext.Post(_ => ShowPanel(), null);
                 }
