@@ -111,7 +111,7 @@ internal sealed class TrayController : IDisposable
         catch (SocketException exception)
         {
             m_NotifyIcon.Text = $"{CodexMonitorDefaults.AppName} service failed";
-            Forms.MessageBox.Show($"Unable to start CodexMonitor service on port {m_Settings.Port}.\n\n{exception.Message}", CodexMonitorDefaults.AppName, Forms.MessageBoxButtons.OK, Forms.MessageBoxIcon.Warning);
+            Forms.MessageBox.Show($"Unable to start {CodexMonitorDefaults.AppName} service on port {m_Settings.Port}.\n\n{exception.Message}", CodexMonitorDefaults.AppName, Forms.MessageBoxButtons.OK, Forms.MessageBoxIcon.Warning);
         }
     }
 

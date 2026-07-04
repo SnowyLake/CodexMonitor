@@ -74,7 +74,7 @@ public static class LiteMonitorPluginInstaller
     /// </summary>
     private static string ReadTemplateJson()
     {
-        string templatePath = Path.Combine(AppContext.BaseDirectory, "Plugins", "LiteMonitor", CodexMonitorDefaults.PluginFileName);
+        string templatePath = Path.Combine(AppContext.BaseDirectory, CodexMonitorDefaults.PluginsDirectoryName, CodexMonitorDefaults.LiteMonitorPluginSubdirectory, CodexMonitorDefaults.PluginFileName);
         if (!File.Exists(templatePath))
         {
             throw new FileNotFoundException($"LiteMonitor plugin template was not found: {templatePath}");

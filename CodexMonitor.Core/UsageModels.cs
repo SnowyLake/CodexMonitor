@@ -17,11 +17,14 @@ public static class CodexMonitorDefaults
     public const string PluginFileName = "CodexMonitor.json";
     public const string TrafficMonitorPluginFileName = "CodexMonitor.dll";
     public const string TrafficMonitorPluginConfigFileName = "CodexMonitor.ini";
+    public const string PluginsDirectoryName = "Plugins";
+    public const string LiteMonitorPluginSubdirectory = "LiteMonitor";
+    public const string TrafficMonitorPluginSubdirectory = "TrafficMonitor";
     public const string UsageEndpointPath = "/codex-monitor";
     public const string UsageTextEndpointPath = "/codex-monitor.txt";
     public const string HealthEndpointPath = "/health";
-    public const string DefaultBridgeUrl = "http://" + Host + ":17890" + UsageEndpointPath;
-    public const string DefaultBridgeTextUrl = "http://" + Host + ":17890" + UsageTextEndpointPath;
+    public static readonly string DefaultBridgeUrl = BuildLoopbackUrl(Port, UsageEndpointPath);
+    public static readonly string DefaultBridgeTextUrl = BuildLoopbackUrl(Port, UsageTextEndpointPath);
 
     /// <summary>
     /// Builds the JSON bridge URL for a port.
