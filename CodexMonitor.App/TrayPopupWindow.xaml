@@ -367,8 +367,8 @@
             BorderThickness="1">
         <Border.Background>
             <LinearGradientBrush StartPoint="0,0" EndPoint="0.3,1">
-                <GradientStop Offset="0" Color="#8A16201F" />
-                <GradientStop Offset="1" Color="#9E0E1413" />
+                <GradientStop Offset="0" Color="#6616201F" />
+                <GradientStop Offset="1" Color="#720E1413" />
             </LinearGradientBrush>
         </Border.Background>
         <Grid>

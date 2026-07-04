@@ -18,7 +18,7 @@ internal sealed partial class TrayPopupWindow : Window
     private const int k_AccentEnableAcrylicBlurBehind = 4;
     private const int k_DwmwcpRound = 2;
     private const int k_DwmsbtTransientWindow = 3;
-    private const uint k_AcrylicGradientColor = 0xA8142020;
+    private const uint k_AcrylicGradientColor = 0x78142020;
 
     /// <summary>
     /// Creates the WPF tray popup window.
