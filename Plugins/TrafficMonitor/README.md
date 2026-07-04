@@ -11,7 +11,7 @@
 
 这个目录包含 CodexMonitor 的 TrafficMonitor 原生插件源码. 插件实现 TrafficMonitor 的 `ITMPlugin` 和 `IPluginItem` 接口, 提供 `Codex 5h` 和 `Codex Weekly` 两个显示项.
 
-插件会请求本机 CodexMonitor 桥接服务的 `/codex-monitor` 接口, 并读取 JSON 里的 `display.codex_5h` 和 `display.codex_weekly`.
+插件会请求本机 CodexMonitor 桥接服务的 `/codex-monitor.txt` 接口, 并读取两行文本值.
 
 ## 构建
 
@@ -39,7 +39,7 @@ Plugins\TrafficMonitor\Builds\x64\Release\CodexMonitor.dll
 
 ```ini
 [CodexMonitor]
-UsageUrl=http://127.0.0.1:17890/codex-monitor
+UsageUrl=http://127.0.0.1:17890/codex-monitor.txt
 ```
 
 如果 CodexMonitor 的服务端口变更, 可以在 TrafficMonitor 的插件管理中打开 Codex Monitor 选项面板并更新 `UsageUrl`, 也可以重新点击 `Install TrafficMonitor Plugin` 同步写入当前后端网址.

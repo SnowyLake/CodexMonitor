@@ -2,11 +2,6 @@ namespace CodexMonitor.Core;
 
 public static class TrafficMonitorPluginInstaller
 {
-    private const string k_FallbackPluginConfig = """
-[CodexMonitor]
-UsageUrl=http://127.0.0.1:17890/codex-monitor
-""";
-
     /// <summary>
     /// Installs the TrafficMonitor plugin DLL and local configuration into the selected directory.
     /// </summary>
@@ -34,8 +29,7 @@ UsageUrl=http://127.0.0.1:17890/codex-monitor
     /// </summary>
     private static string BuildPluginConfig(int port)
     {
-        int normalizedPort = port is > 0 and <= 65535 ? port : CodexMonitorDefaults.Port;
-        string bridgeUrl = $"http://127.0.0.1:{normalizedPort}{CodexMonitorDefaults.UsageEndpointPath}";
+        string bridgeUrl = CodexMonitorDefaults.BuildBridgeTextUrl(port);
         return SetUsageUrl(ReadTemplateConfig(), bridgeUrl);
     }
 
@@ -71,7 +65,12 @@ UsageUrl=http://127.0.0.1:17890/codex-monitor
     private static string ReadTemplateConfig()
     {
         string templatePath = Path.Combine(AppContext.BaseDirectory, "Plugins", "TrafficMonitor", CodexMonitorDefaults.TrafficMonitorPluginConfigFileName);
-        return File.Exists(templatePath) ? File.ReadAllText(templatePath) : k_FallbackPluginConfig;
+        if (!File.Exists(templatePath))
+        {
+            throw new FileNotFoundException($"TrafficMonitor plugin config template was not found: {templatePath}");
+        }
+
+        return File.ReadAllText(templatePath);
     }
 
     /// <summary>

@@ -2,7 +2,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CodexMonitor.Core\CodexMonitor.Core.csproj" />
-    <Compile Include="Program.cs" />
+    <Content Include="..\Plugins\LiteMonitor\CodexMonitor.json" Link="Plugins\LiteMonitor\CodexMonitor.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\Plugins\TrafficMonitor\CodexMonitor.ini" Link="Plugins\TrafficMonitor\CodexMonitor.ini" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -11,7 +12,6 @@
     <RootNamespace>CodexMonitor.Tests</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
 
 </Project>

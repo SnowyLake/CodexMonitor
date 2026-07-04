@@ -1,11 +1,12 @@
+using CodexMonitor.Core;
 using System.Threading;
 
 namespace CodexMonitor.App;
 
 internal static class Program
 {
-    private const string k_MutexName = "CodexMonitorTrayMutex";
-    private const string k_ShowSettingsEventName = "CodexMonitorTrayShowSettings";
+    private const string k_MutexName = CodexMonitorDefaults.AppName + "TrayMutex";
+    private const string k_ShowSettingsEventName = CodexMonitorDefaults.AppName + "TrayShowSettings";
 
     /// <summary>
     /// Starts the tray application or signals an existing instance.

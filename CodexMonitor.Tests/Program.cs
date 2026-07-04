@@ -187,13 +187,17 @@ internal static class Program
         server.Start();
 
         using HttpClient client = new();
-        string health = await client.GetStringAsync($"http://127.0.0.1:{server.Port}/health");
+        string health = await client.GetStringAsync($"http://{CodexMonitorDefaults.Host}:{server.Port}{CodexMonitorDefaults.HealthEndpointPath}");
         AssertTrue(health.Contains("\"ok\":true", StringComparison.Ordinal), "health response");
 
-        string usageJson = await client.GetStringAsync($"http://127.0.0.1:{server.Port}{CodexMonitorDefaults.UsageEndpointPath}");
+        string usageJson = await client.GetStringAsync($"http://{CodexMonitorDefaults.Host}:{server.Port}{CodexMonitorDefaults.UsageEndpointPath}");
         using JsonDocument document = JsonDocument.Parse(usageJson);
         string display = document.RootElement.GetProperty("display").GetProperty("codex_5h").GetString() ?? string.Empty;
         AssertEqual("90% [1h 00m]", display, "HTTP five hour display");
+
+        string usageText = await client.GetStringAsync($"http://{CodexMonitorDefaults.Host}:{server.Port}{CodexMonitorDefaults.UsageTextEndpointPath}");
+        AssertTrue(usageText.Contains("90% [1h 00m]", StringComparison.Ordinal), "text endpoint should include five hour display");
+        AssertTrue(usageText.Contains("80% [2d 00h]", StringComparison.Ordinal), "text endpoint should include weekly display");
     }
 
     /// <summary>
@@ -210,7 +214,7 @@ internal static class Program
         string content = File.ReadAllText(targetPath);
         AssertTrue(content.Contains("\"format_val\": \"     {{codex_5h_display}}\"", StringComparison.Ordinal), "plugin content should include five hour padding");
         AssertTrue(content.Contains("\"format_val\": \" {{codex_weekly_display}}\"", StringComparison.Ordinal), "plugin content should include weekly padding");
-        AssertTrue(content.Contains("http://127.0.0.1:17998/codex-monitor", StringComparison.Ordinal), "plugin content should include bridge URL");
+        AssertTrue(content.Contains($"http://{CodexMonitorDefaults.Host}:17998{CodexMonitorDefaults.UsageEndpointPath}", StringComparison.Ordinal), "plugin content should include bridge URL");
         return Task.CompletedTask;
     }
 
@@ -229,7 +233,7 @@ internal static class Program
         string configPath = Path.Combine(temp.Path, "plugins", CodexMonitorDefaults.TrafficMonitorPluginConfigFileName);
         AssertTrue(File.Exists(configPath), "plugin config should exist");
         string content = File.ReadAllText(configPath);
-        AssertTrue(content.Contains("http://127.0.0.1:17999/codex-monitor", StringComparison.Ordinal), "plugin config should include bridge URL");
+        AssertTrue(content.Contains($"http://{CodexMonitorDefaults.Host}:17999{CodexMonitorDefaults.UsageTextEndpointPath}", StringComparison.Ordinal), "plugin config should include bridge URL");
         AssertTrue(!content.Contains("{{", StringComparison.Ordinal), "plugin config should not include template placeholders");
         AssertTrue(!content.Contains("RequestIntervalSeconds", StringComparison.Ordinal), "plugin config should not include request interval");
         return Task.CompletedTask;

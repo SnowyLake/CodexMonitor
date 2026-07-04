@@ -14,6 +14,7 @@ $projectPath = Join-Path $repoRoot "CodexMonitor.App\CodexMonitor.App.csproj"
 $releaseBaseRoot = Join-Path $repoRoot "Builds\Release"
 $runtime = "win-x64"
 $appFileName = "CodexMonitor.exe"
+. (Join-Path $scriptRoot "Publish-Shared.ps1")
 
 function Get-NormalizedVersion {
     param(
@@ -39,27 +40,6 @@ $packageName = "CodexMonitor-$normalizedVersion-$runtime.zip"
 $stagingDir = Join-Path $releaseRoot "CodexMonitor-$normalizedVersion-$runtime"
 $packagePath = Join-Path $releaseRoot $packageName
 
-function Remove-PathWithRetry {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$Path
-    )
-
-    for ($attempt = 1; $attempt -le 10; $attempt++) {
-        try {
-            Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction Stop
-            return
-        }
-        catch {
-            if ($attempt -eq 10) {
-                throw
-            }
-
-            Start-Sleep -Milliseconds 500
-        }
-    }
-}
-
 function Invoke-ReleasePublish {
     if (Test-Path -LiteralPath $stagingDir) {
         Remove-PathWithRetry $stagingDir
@@ -67,28 +47,13 @@ function Invoke-ReleasePublish {
 
     New-Item -ItemType Directory -Path $stagingDir -Force | Out-Null
 
-    Write-Host "Release package publish started."
     Write-Host "Version: $normalizedVersion"
-    Write-Host "Project: $projectPath"
     Write-Host "Staging: $stagingDir"
 
-    Push-Location $repoRoot
-    try {
-        dotnet publish $projectPath -c Release -f net9.0-windows -r $runtime -p:PublishSingleFile=true -p:SelfContained=false -o $stagingDir
-        if ($LASTEXITCODE -ne 0) {
-            throw "dotnet publish failed with exit code $LASTEXITCODE."
-        }
-
-        Get-ChildItem -LiteralPath $stagingDir -Filter "*.pdb" -File -ErrorAction SilentlyContinue |
-            Remove-Item -Force
-
-        $appPath = Join-Path $stagingDir $appFileName
-        if (-not (Test-Path -LiteralPath $appPath)) {
-            throw "Published executable not found: $appPath"
-        }
-    }
-    finally {
-        Pop-Location
+    Invoke-CodexMonitorPublish -RepoRoot $repoRoot -ProjectPath $projectPath -OutputPath $stagingDir -Title "Release package publish started."
+    $appPath = Join-Path $stagingDir $appFileName
+    if (-not (Test-Path -LiteralPath $appPath)) {
+        throw "Published executable not found: $appPath"
     }
 }
 
@@ -104,16 +69,6 @@ function New-ReleaseZip {
     Write-Host "Package: $packagePath"
 }
 
-function Wait-BeforeExit {
-    if ($NoPause) {
-        return
-    }
-
-    Write-Host ""
-    Write-Host "Press any key to close this window..."
-    [Console]::ReadKey($true) | Out-Null
-}
-
 $exitCode = 0
 try {
     Invoke-ReleasePublish
@@ -126,7 +81,7 @@ catch {
     $exitCode = 1
 }
 finally {
-    Wait-BeforeExit
+    Wait-BeforeExit -NoPause:$NoPause
 }
 
 exit $exitCode

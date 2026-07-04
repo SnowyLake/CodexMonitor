@@ -26,7 +26,7 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
     private string m_PlanDisplay = "None";
     private Media.Brush m_PlanBadgeBrush = s_PlanBadgeInactiveBrush;
     private string m_UpdatedAtDisplay = "Waiting for first refresh";
-    private string m_StatusMessage = "Starting CodexMonitor...";
+    private string m_StatusMessage = $"Starting {CodexMonitorDefaults.AppName}...";
     private string m_ServiceStatus = "Service: starting";
     private string m_SourceDisplay = "Source: unavailable";
     private string m_LiteMonitorDir = string.Empty;
@@ -246,8 +246,8 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
     public void UpdateStatus(bool isRunning, int port, UsageResponse? response, string? error)
     {
         ServiceStatus = error == null
-            ? $"Service: {(isRunning ? "Running" : "Stopped")} on 127.0.0.1:{port}"
-            : $"Service: Error on 127.0.0.1:{port} - {error}";
+            ? $"Service: {(isRunning ? "Running" : "Stopped")} on {CodexMonitorDefaults.Host}:{port}"
+            : $"Service: Error on {CodexMonitorDefaults.Host}:{port} - {error}";
 
         SourceDisplay = $"Source: {FormatSource(response)}";
         UpdatedAtDisplay = FormatUpdatedAt(response?.UpdatedAt);
@@ -386,7 +386,7 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
         try
         {
             StatusMessage = message;
-            System.Windows.MessageBox.Show(message, "CodexMonitor", MessageBoxButton.OK, MessageBoxImage.Information);
+            System.Windows.MessageBox.Show(message, CodexMonitorDefaults.AppName, MessageBoxButton.OK, MessageBoxImage.Information);
         }
         finally
         {

@@ -5,17 +5,19 @@ namespace CodexMonitor.App;
 internal sealed class RelayCommand : ICommand
 {
     private readonly Action<object?> m_Execute;
-    private readonly Predicate<object?>? m_CanExecute;
 
-    public event EventHandler? CanExecuteChanged;
+    public event EventHandler? CanExecuteChanged
+    {
+        add { }
+        remove { }
+    }
 
     /// <summary>
     /// Creates a command with an execute callback.
     /// </summary>
-    public RelayCommand(Action<object?> execute, Predicate<object?>? canExecute = null)
+    public RelayCommand(Action<object?> execute)
     {
         m_Execute = execute;
-        m_CanExecute = canExecute;
     }
 
     /// <summary>
@@ -23,7 +25,7 @@ internal sealed class RelayCommand : ICommand
     /// </summary>
     public bool CanExecute(object? parameter)
     {
-        return m_CanExecute?.Invoke(parameter) ?? true;
+        return true;
     }
 
     /// <summary>
@@ -34,11 +36,4 @@ internal sealed class RelayCommand : ICommand
         m_Execute(parameter);
     }
 
-    /// <summary>
-    /// Raises the command availability change event.
-    /// </summary>
-    public void RaiseCanExecuteChanged()
-    {
-        CanExecuteChanged?.Invoke(this, EventArgs.Empty);
-    }
 }

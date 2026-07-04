@@ -79,7 +79,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         {
             ContextMenuStrip = menu,
             Icon = m_AppIcon,
-            Text = "CodexMonitor",
+            Text = CodexMonitorDefaults.AppName,
             Visible = true,
         };
         notifyIcon.MouseUp += (_, args) =>
@@ -101,12 +101,12 @@ internal sealed class TrayApplicationContext : ApplicationContext
         {
             m_Server = new LightweightHttpServer(m_UsageCache, m_Settings.Port);
             m_Server.Start();
-            m_NotifyIcon.Text = $"CodexMonitor :{m_Server.Port}";
+            m_NotifyIcon.Text = $"{CodexMonitorDefaults.AppName} :{m_Server.Port}";
         }
         catch (SocketException exception)
         {
-            m_NotifyIcon.Text = "CodexMonitor service failed";
-            MessageBox.Show($"Unable to start CodexMonitor service on port {m_Settings.Port}.\n\n{exception.Message}", "CodexMonitor", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            m_NotifyIcon.Text = $"{CodexMonitorDefaults.AppName} service failed";
+            MessageBox.Show($"Unable to start CodexMonitor service on port {m_Settings.Port}.\n\n{exception.Message}", CodexMonitorDefaults.AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
 
@@ -383,7 +383,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         m_PopupViewModel?.SetMessage(message);
         if (m_TrayPopupWindow?.IsVisible != true)
         {
-            MessageBox.Show(message, "CodexMonitor", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(message, CodexMonitorDefaults.AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
 

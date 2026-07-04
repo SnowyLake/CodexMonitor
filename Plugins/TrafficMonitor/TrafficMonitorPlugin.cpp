@@ -12,7 +12,7 @@
 
 namespace TrafficMonitorPlugin
 {
-constexpr wchar_t k_DefaultUsageUrl[] = L"http://127.0.0.1:17890/codex-monitor";
+constexpr wchar_t k_DefaultUsageUrl[] = L"http://127.0.0.1:17890/codex-monitor.txt";
 constexpr wchar_t k_ConfigFileName[] = L"CodexMonitor.ini";
 constexpr wchar_t k_ConfigSection[] = L"CodexMonitor";
 constexpr wchar_t k_ConfigUsageUrlKey[] = L"UsageUrl";
@@ -396,85 +396,6 @@ bool ShowUsageUrlOptionsDialog(HWND owner, std::wstring& url)
     return state.accepted;
 }
 
-/// Decodes a JSON string escape sequence into a byte string.
-void AppendJsonEscape(std::string& output, char escaped)
-{
-    switch (escaped)
-    {
-    case '"':
-        output.push_back('"');
-        break;
-    case '\\':
-        output.push_back('\\');
-        break;
-    case '/':
-        output.push_back('/');
-        break;
-    case 'b':
-        output.push_back('\b');
-        break;
-    case 'f':
-        output.push_back('\f');
-        break;
-    case 'n':
-        output.push_back('\n');
-        break;
-    case 'r':
-        output.push_back('\r');
-        break;
-    case 't':
-        output.push_back('\t');
-        break;
-    default:
-        output.push_back(escaped);
-        break;
-    }
-}
-
-/// Extracts a simple UTF-8 JSON string property from a response body.
-bool ExtractJsonString(const std::string& json, const char* key, std::string& value)
-{
-    std::string quotedKey = std::string("\"") + key + "\"";
-    size_t keyPosition = json.find(quotedKey);
-    if (keyPosition == std::string::npos)
-    {
-        return false;
-    }
-
-    size_t colonPosition = json.find(':', keyPosition + quotedKey.size());
-    if (colonPosition == std::string::npos)
-    {
-        return false;
-    }
-
-    size_t quotePosition = json.find('"', colonPosition + 1);
-    if (quotePosition == std::string::npos)
-    {
-        return false;
-    }
-
-    std::string result;
-    for (size_t index = quotePosition + 1; index < json.size(); index++)
-    {
-        char current = json[index];
-        if (current == '"')
-        {
-            value = result;
-            return true;
-        }
-
-        if (current == '\\' && index + 1 < json.size())
-        {
-            AppendJsonEscape(result, json[++index]);
-            continue;
-        }
-
-        result.push_back(current);
-    }
-
-    return false;
-}
-
 /// Fetches a URL with WinHTTP and returns the response body.
 bool FetchUrl(const std::wstring& url, std::string& body)
 {
@@ -556,16 +477,15 @@ bool FetchUsageValues(UsageValues& values)
         return false;
     }
 
-    std::string fiveHour;
-    std::string weekly;
-    if (!ExtractJsonString(body, "codex_5h", fiveHour) ||
-        !ExtractJsonString(body, "codex_weekly", weekly))
+    std::wstring text = Utf8ToWide(body);
+    size_t separator = text.find(L'\n');
+    if (separator == std::wstring::npos)
     {
         return false;
     }
 
-    values.fiveHour = Utf8ToWide(fiveHour);
-    values.weekly = Utf8ToWide(weekly);
+    values.fiveHour = TrimString(text.substr(0, separator));
+    values.weekly = TrimString(text.substr(separator + 1));
     return !values.fiveHour.empty() && !values.weekly.empty();
 }
 

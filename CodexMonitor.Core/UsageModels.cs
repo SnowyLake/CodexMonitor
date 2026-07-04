@@ -16,7 +16,44 @@ public static class CodexMonitorDefaults
     public const string TrafficMonitorPluginFileName = "CodexMonitor.dll";
     public const string TrafficMonitorPluginConfigFileName = "CodexMonitor.ini";
     public const string UsageEndpointPath = "/codex-monitor";
-    public const string DefaultBridgeUrl = "http://127.0.0.1:17890" + UsageEndpointPath;
+    public const string UsageTextEndpointPath = "/codex-monitor.txt";
+    public const string HealthEndpointPath = "/health";
+    public const string DefaultBridgeUrl = "http://" + Host + ":17890" + UsageEndpointPath;
+    public const string DefaultBridgeTextUrl = "http://" + Host + ":17890" + UsageTextEndpointPath;
+
+    /// <summary>
+    /// Builds the JSON bridge URL for a port.
+    /// </summary>
+    public static string BuildBridgeUrl(int port)
+    {
+        int normalizedPort = NormalizePort(port);
+        return normalizedPort == Port ? DefaultBridgeUrl : BuildLoopbackUrl(normalizedPort, UsageEndpointPath);
+    }
+
+    /// <summary>
+    /// Builds the text bridge URL for a port.
+    /// </summary>
+    public static string BuildBridgeTextUrl(int port)
+    {
+        int normalizedPort = NormalizePort(port);
+        return normalizedPort == Port ? DefaultBridgeTextUrl : BuildLoopbackUrl(normalizedPort, UsageTextEndpointPath);
+    }
+
+    /// <summary>
+    /// Normalizes a TCP port to the supported range.
+    /// </summary>
+    private static int NormalizePort(int port)
+    {
+        return port is > 0 and <= 65535 ? port : Port;
+    }
+
+    /// <summary>
+    /// Builds a loopback HTTP URL for a path.
+    /// </summary>
+    private static string BuildLoopbackUrl(int port, string path)
+    {
+        return $"http://{Host}:{port}{path}";
+    }
 }
 
 public sealed class UsageResponse
