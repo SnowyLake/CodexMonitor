@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Windows;
 using System.Windows.Input;
 using Forms = System.Windows.Forms;
@@ -213,14 +214,14 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
     /// </summary>
     public bool TryApplySettings(out string message)
     {
-        if (!int.TryParse(PortText, NumberStyles.Integer, CultureInfo.InvariantCulture, out int port) || port <= 0 || port > 65535)
+        if (!int.TryParse(KeepDigits(PortText), NumberStyles.Integer, CultureInfo.InvariantCulture, out int port) || port <= 0 || port > 65535)
         {
             message = "Port must be between 1 and 65535.";
             StatusMessage = message;
             return false;
         }
 
-        if (!int.TryParse(RefreshIntervalText, NumberStyles.Integer, CultureInfo.InvariantCulture, out int refreshInterval) ||
+        if (!int.TryParse(KeepDigits(RefreshIntervalText), NumberStyles.Integer, CultureInfo.InvariantCulture, out int refreshInterval) ||
             refreshInterval < CodexMonitorDefaults.MinimumRefreshIntervalMinutes ||
             refreshInterval > CodexMonitorDefaults.MaximumRefreshIntervalMinutes)
         {
@@ -444,6 +445,28 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
         return DateTimeOffset.TryParse(updatedAt, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out DateTimeOffset parsed)
             ? $"Updated {parsed.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture)}"
             : updatedAt;
+    }
+
+    /// <summary>
+    /// Keeps only decimal digits from a raw input string.
+    /// </summary>
+    private static string KeepDigits(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        StringBuilder builder = new(value.Length);
+        foreach (char character in value)
+        {
+            if (character is >= '0' and <= '9')
+            {
+                builder.Append(character);
+            }
+        }
+
+        return builder.ToString();
     }
 
     /// <summary>

@@ -3,6 +3,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:core="clr-namespace:CodexMonitor.Core;assembly=CodexMonitor.Core"
+        xmlns:local="clr-namespace:CodexMonitor.App"
         Title="{x:Static core:CodexMonitorDefaults.AppName}"
         Width="410"
         Height="588"
@@ -77,6 +78,7 @@
                    TargetType="{x:Type TextBox}">
                 <Setter Property="TextAlignment" Value="Center" />
                 <Setter Property="HorizontalContentAlignment" Value="Center" />
+                <Setter Property="local:NumericInput.IsEnabled" Value="True" />
             </Style>
 
             <Style x:Key="SettingsComboBoxStyle"
@@ -435,7 +437,7 @@
                         <Grid Margin="0,0,0,16">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="84" />
+                                <ColumnDefinition Width="140" />
                             </Grid.ColumnDefinitions>
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="Refresh interval"
@@ -550,7 +552,7 @@
                         <Grid Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="84" />
+                                <ColumnDefinition Width="140" />
                             </Grid.ColumnDefinitions>
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="HTTP port"
