@@ -536,8 +536,7 @@
                                                  Value="{Binding RefreshIntervalText, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
                         </Grid>
 
-                        <Grid Margin="{StaticResource SettingsSectionEndMargin}"
-                              Style="{StaticResource SettingsRowGridStyle}">
+                        <Grid Style="{StaticResource SettingsRowGridStyle}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="140" />
@@ -551,6 +550,25 @@
                                       ToolTipService.ShowDuration="{StaticResource ToolTipShowDuration}"
                                       IsChecked="{Binding StartWithWindows}"
                                       ToolTip="Start with Windows" />
+                        </Grid>
+
+                        <Grid Margin="{StaticResource SettingsSectionEndMargin}"
+                              ToolTip="Show reset as absolute time (5-Hour as HH:mm, 7-Day as MM-dd) instead of a countdown"
+                              Style="{StaticResource SettingsRowGridStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="140" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Use absolute time"
+                                       ToolTip="Show reset as absolute time (5-Hour as HH:mm, 7-Day as MM-dd) instead of a countdown"
+                                       Style="{StaticResource SettingsRowTitleStyle}" />
+                            <CheckBox Grid.Column="1"
+                                      HorizontalAlignment="Right"
+                                      VerticalAlignment="Center"
+                                      ToolTipService.InitialShowDelay="{StaticResource ToolTipInitialShowDelay}"
+                                      ToolTipService.ShowDuration="{StaticResource ToolTipShowDuration}"
+                                      IsChecked="{Binding UseAbsoluteResetTime}"
+                                      ToolTip="Show reset as absolute time (5-Hour as HH:mm, 7-Day as MM-dd) instead of a countdown" />
                         </Grid>
 
                         <!-- Appearance -->

@@ -21,6 +21,7 @@ internal static class Program
         await RunAsync("returns unavailable response without OAuth credentials", TestEmptyResponseAsync);
         await RunAsync("collects official Codex quota", TestOfficialQuotaAsync);
         await RunAsync("omits reset suffix when disabled", TestDisplayWithoutResetSuffixAsync);
+        await RunAsync("uses absolute reset time when enabled", TestAbsoluteResetTimeAsync);
         await RunAsync("serves health and usage over HTTP", TestHttpServerAsync);
         await RunAsync("installs LiteMonitor plugin config", TestPluginInstallAsync);
         await RunAsync("installs TrafficMonitor plugin", TestTrafficMonitorPluginInstallAsync);
@@ -190,6 +191,27 @@ internal static class Program
         AssertEqual("75%", response.Display.Codex5H, "five hour display without reset suffix");
         AssertEqual("60%", response.Display.Codex7D, "seven day display without reset suffix");
         AssertEqual("1h15m", response.Limits.FiveHour.ResetLabel, "reset label remains available for the panel");
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Tests that reset labels use absolute clock and date when the option is enabled.
+    /// </summary>
+    private static Task TestAbsoluteResetTimeAsync()
+    {
+        using TempDirectory temp = new();
+        DateTimeOffset now = new(2026, 7, 1, 12, 0, 0, TimeSpan.FromHours(8));
+        long reset5H = now.AddHours(1).AddMinutes(15).ToUnixTimeSeconds();
+        long resetSevenDay = now.AddDays(2).AddHours(12).ToUnixTimeSeconds();
+        CodexMonitorCollector collector = CreateOfficialCollector(temp.Path, now, reset5H, resetSevenDay, 25.0, 40.0, out HttpClient client);
+        using HttpClient _ = client;
+
+        UsageResponse response = collector.Collect(temp.Path, showResetTimeInPlugins: true, useAbsoluteResetTime: true);
+
+        AssertEqual("13:15", response.Limits.FiveHour.ResetLabel, "five hour absolute reset clock");
+        AssertEqual("07-04", response.Limits.SevenDay.ResetLabel, "seven day absolute reset date");
+        AssertEqual("75% 13:15", response.Display.Codex5H, "five hour display with absolute reset");
+        AssertEqual("60% 07-04", response.Display.Codex7D, "seven day display with absolute reset");
         return Task.CompletedTask;
     }
 

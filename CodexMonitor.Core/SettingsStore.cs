@@ -28,6 +28,8 @@ public sealed class AppSettings
 
     public bool ShowResetTimeInPlugins { get; set; } = CodexMonitorDefaults.ShowResetTimeInPlugins;
 
+    public bool UseAbsoluteResetTime { get; set; } = CodexMonitorDefaults.UseAbsoluteResetTime;
+
     /// <summary>
     /// Creates a normalized copy of settings values.
     /// </summary>

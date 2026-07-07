@@ -30,17 +30,17 @@ public sealed class CodexMonitorCollector
     /// <summary>
     /// Collects the latest Codex monitor response from the default Codex directory.
     /// </summary>
-    public UsageResponse Collect(bool showResetTimeInPlugins = true)
+    public UsageResponse Collect(bool showResetTimeInPlugins = true, bool useAbsoluteResetTime = false)
     {
-        return Collect(GetDefaultCodexDirectory(), showResetTimeInPlugins);
+        return Collect(GetDefaultCodexDirectory(), showResetTimeInPlugins, useAbsoluteResetTime);
     }
 
     /// <summary>
     /// Collects the latest Codex monitor response from a Codex directory.
     /// </summary>
-    public UsageResponse Collect(string codexDirectory, bool showResetTimeInPlugins = true)
+    public UsageResponse Collect(string codexDirectory, bool showResetTimeInPlugins = true, bool useAbsoluteResetTime = false)
     {
-        return CollectOfficialUsage(codexDirectory, showResetTimeInPlugins);
+        return CollectOfficialUsage(codexDirectory, showResetTimeInPlugins, useAbsoluteResetTime);
     }
 
     /// <summary>
@@ -54,7 +54,7 @@ public sealed class CodexMonitorCollector
     /// <summary>
     /// Collects Codex usage from the official ChatGPT quota endpoint.
     /// </summary>
-    private UsageResponse CollectOfficialUsage(string codexDirectory, bool showResetTimeInPlugins)
+    private UsageResponse CollectOfficialUsage(string codexDirectory, bool showResetTimeInPlugins, bool useAbsoluteResetTime)
     {
         DateTimeOffset now = m_NowProvider();
         string authPath = Path.Combine(codexDirectory, "auth.json");
@@ -88,7 +88,7 @@ public sealed class CodexMonitorCollector
             }
 
             using JsonDocument document = JsonDocument.Parse(body);
-            return BuildOfficialResponse(codexDirectory, authPath, document.RootElement, now, showResetTimeInPlugins);
+            return BuildOfficialResponse(codexDirectory, authPath, document.RootElement, now, showResetTimeInPlugins, useAbsoluteResetTime);
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException or IOException)
         {
@@ -99,15 +99,19 @@ public sealed class CodexMonitorCollector
     /// <summary>
     /// Builds a usage response from the official quota endpoint JSON.
     /// </summary>
-    private UsageResponse BuildOfficialResponse(string codexDirectory, string authPath, JsonElement root, DateTimeOffset now, bool showResetTimeInPlugins)
+    private UsageResponse BuildOfficialResponse(string codexDirectory, string authPath, JsonElement root, DateTimeOffset now, bool showResetTimeInPlugins, bool useAbsoluteResetTime)
     {
         JsonElement rateLimit = GetObjectProperty(root, "rate_limit");
         JsonElement primary = GetObjectProperty(rateLimit, "primary_window");
         JsonElement secondary = GetObjectProperty(rateLimit, "secondary_window");
         UsageLimit fiveHour = BuildOfficialLimit("five_hour", primary, now);
         UsageLimit sevenDay = BuildOfficialLimit("seven_day", secondary, now);
-        fiveHour.ResetLabel = FormatFiveHourResetLabel(fiveHour.ResetsAt, now);
-        sevenDay.ResetLabel = FormatSevenDayResetLabel(sevenDay.ResetsAt, now);
+        fiveHour.ResetLabel = useAbsoluteResetTime
+            ? FormatFiveHourResetClock(fiveHour.ResetsAt, now)
+            : FormatFiveHourResetLabel(fiveHour.ResetsAt, now);
+        sevenDay.ResetLabel = useAbsoluteResetTime
+            ? FormatSevenDayResetDate(sevenDay.ResetsAt, now)
+            : FormatSevenDayResetLabel(sevenDay.ResetsAt, now);
 
         if (primary.ValueKind != JsonValueKind.Object && secondary.ValueKind != JsonValueKind.Object)
         {
@@ -275,6 +279,32 @@ public sealed class CodexMonitorCollector
         TimeSpan remaining = GetRemainingTime(epochSeconds, now);
         long days = (long)Math.Floor(remaining.TotalDays);
         return string.Create(CultureInfo.InvariantCulture, $"{days}d{remaining.Hours:D2}h");
+    }
+
+    /// <summary>
+    /// Formats the five hour reset as an absolute local clock label.
+    /// </summary>
+    private static string FormatFiveHourResetClock(long epochSeconds, DateTimeOffset now)
+    {
+        if (epochSeconds <= 0)
+        {
+            return "unknown";
+        }
+
+        return DateTimeOffset.FromUnixTimeSeconds(epochSeconds).ToOffset(now.Offset).ToString("HH:mm", CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// Formats the seven day reset as an absolute local month-day label.
+    /// </summary>
+    private static string FormatSevenDayResetDate(long epochSeconds, DateTimeOffset now)
+    {
+        if (epochSeconds <= 0)
+        {
+            return "unknown";
+        }
+
+        return DateTimeOffset.FromUnixTimeSeconds(epochSeconds).ToOffset(now.Offset).ToString("MM-dd", CultureInfo.InvariantCulture);
     }
 
     /// <summary>

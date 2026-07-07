@@ -60,6 +60,7 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
     private bool m_AcrylicEnabled = CodexMonitorDefaults.AcrylicEnabled;
     private int m_AcrylicOpacityPercent = CodexMonitorDefaults.AcrylicOpacityPercent;
     private bool m_ShowResetTimeInPlugins = CodexMonitorDefaults.ShowResetTimeInPlugins;
+    private bool m_UseAbsoluteResetTime = CodexMonitorDefaults.UseAbsoluteResetTime;
     private bool m_IsRefreshing;
     private bool m_IsModalOpen;
     private bool m_IsDetectingLiteMonitor;
@@ -77,6 +78,7 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
     private bool m_SnapshotAcrylicEnabled = CodexMonitorDefaults.AcrylicEnabled;
     private int m_SnapshotAcrylicOpacityPercent = CodexMonitorDefaults.AcrylicOpacityPercent;
     private bool m_SnapshotShowResetTimeInPlugins = CodexMonitorDefaults.ShowResetTimeInPlugins;
+    private bool m_SnapshotUseAbsoluteResetTime = CodexMonitorDefaults.UseAbsoluteResetTime;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -326,6 +328,18 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
         }
     }
 
+    public bool UseAbsoluteResetTime
+    {
+        get => m_UseAbsoluteResetTime;
+        set
+        {
+            if (SetField(ref m_UseAbsoluteResetTime, value))
+            {
+                EvaluateDirtyState();
+            }
+        }
+    }
+
     public string AcrylicOpacityDisplay => $"{m_AcrylicOpacityPercent}%";
 
     public int AcrylicOpacityMinimum => CodexMonitorDefaults.MinimumAcrylicOpacityPercent;
@@ -389,6 +403,7 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
             AcrylicEnabled = settings.AcrylicEnabled;
             AcrylicOpacityPercent = settings.AcrylicOpacityPercent;
             ShowResetTimeInPlugins = settings.ShowResetTimeInPlugins;
+            UseAbsoluteResetTime = settings.UseAbsoluteResetTime;
         }
         finally
         {
@@ -412,6 +427,7 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
         m_SnapshotAcrylicEnabled = m_AcrylicEnabled;
         m_SnapshotAcrylicOpacityPercent = m_AcrylicOpacityPercent;
         m_SnapshotShowResetTimeInPlugins = m_ShowResetTimeInPlugins;
+        m_SnapshotUseAbsoluteResetTime = m_UseAbsoluteResetTime;
         m_SettingsBaseline = baseline;
         SettingsStatus = baseline;
     }
@@ -435,7 +451,8 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
             m_StartWithWindows == m_SnapshotStartWithWindows &&
             m_AcrylicEnabled == m_SnapshotAcrylicEnabled &&
             m_AcrylicOpacityPercent == m_SnapshotAcrylicOpacityPercent &&
-            m_ShowResetTimeInPlugins == m_SnapshotShowResetTimeInPlugins;
+            m_ShowResetTimeInPlugins == m_SnapshotShowResetTimeInPlugins &&
+            m_UseAbsoluteResetTime == m_SnapshotUseAbsoluteResetTime;
 
         SettingsStatus = matchesSnapshot ? m_SettingsBaseline : SettingsStatus.Unsaved;
     }
@@ -473,6 +490,7 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
         m_Settings.AcrylicEnabled = AcrylicEnabled;
         m_Settings.AcrylicOpacityPercent = AcrylicOpacityPercent;
         m_Settings.ShowResetTimeInPlugins = ShowResetTimeInPlugins;
+        m_Settings.UseAbsoluteResetTime = UseAbsoluteResetTime;
         CaptureSnapshot(SettingsStatus.Saved);
         message = "Changes saved";
         return true;
