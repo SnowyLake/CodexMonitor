@@ -416,7 +416,7 @@
                             <TextBlock Text="{Binding FiveHourQuota.ResetText}"
                                        VerticalAlignment="Center"
                                        Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                       FontSize="11" />
+                                       FontSize="12" />
                         </StackPanel>
                     </StackPanel>
 
@@ -456,7 +456,7 @@
                             <TextBlock Text="{Binding SevenDayQuota.ResetText}"
                                        VerticalAlignment="Center"
                                        Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                       FontSize="11" />
+                                       FontSize="12" />
                         </StackPanel>
                     </StackPanel>
                 </StackPanel>
