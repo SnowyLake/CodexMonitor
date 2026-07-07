@@ -54,6 +54,41 @@ internal sealed class TrayController : IDisposable
             m_SettingsStore.Save(m_Settings);
             m_Dispatcher.BeginInvoke(new Action(ShowPanel));
         }
+
+        _ = AutoDetectMissingPluginPathsAsync();
+    }
+
+    /// <summary>
+    /// Auto detects plugin folders whose configured path is still empty, writing the None sentinel when nothing is found.
+    /// </summary>
+    private async Task AutoDetectMissingPluginPathsAsync()
+    {
+        bool detectLite = m_Settings.LiteMonitorDir.Length == 0;
+        bool detectTraffic = m_Settings.TrafficMonitorDir.Length == 0;
+        if (!detectLite && !detectTraffic)
+        {
+            return;
+        }
+
+        (string liteResult, string trafficResult) = await Task.Run(() =>
+        {
+            string lite = detectLite ? LiteMonitorLocator.AutoDetect() : m_Settings.LiteMonitorDir;
+            string traffic = detectTraffic ? TrafficMonitorLocator.AutoDetect() : m_Settings.TrafficMonitorDir;
+            return (lite, traffic);
+        }).ConfigureAwait(true);
+
+        if (detectLite)
+        {
+            m_Settings.LiteMonitorDir = string.IsNullOrWhiteSpace(liteResult) ? CodexMonitorDefaults.PluginPathNone : liteResult;
+        }
+
+        if (detectTraffic)
+        {
+            m_Settings.TrafficMonitorDir = string.IsNullOrWhiteSpace(trafficResult) ? CodexMonitorDefaults.PluginPathNone : trafficResult;
+        }
+
+        m_SettingsStore.Save(m_Settings);
+        m_PopupViewModel?.LoadSettings(m_Settings);
     }
 
     /// <summary>
@@ -356,20 +391,32 @@ internal sealed class TrayController : IDisposable
     /// </summary>
     private static bool TryValidateLiteMonitorDirectory(string directory, out string message)
     {
-        if (string.IsNullOrWhiteSpace(directory))
+        string normalized = NormalizePluginDirectory(directory);
+        if (normalized.Length == 0)
         {
             message = "LiteMonitor folder is not configured. Use Browse or Auto Detect first.";
             return false;
         }
 
-        if (!LiteMonitorLocator.IsLiteMonitorDirectory(directory))
+        if (!LiteMonitorLocator.IsLiteMonitorDirectory(normalized))
         {
-            message = $"LiteMonitor.exe was not found in:\n{directory}";
+            message = $"LiteMonitor.exe was not found in:\n{normalized}";
             return false;
         }
 
         message = string.Empty;
         return true;
+    }
+
+    /// <summary>
+    /// Returns the plugin directory, treating the None sentinel as unset.
+    /// </summary>
+    private static string NormalizePluginDirectory(string directory)
+    {
+        string trimmed = (directory ?? string.Empty).Trim();
+        return string.Equals(trimmed, CodexMonitorDefaults.PluginPathNone, StringComparison.OrdinalIgnoreCase)
+            ? string.Empty
+            : trimmed;
     }
 
     /// <summary>
@@ -393,15 +440,16 @@ internal sealed class TrayController : IDisposable
     /// </summary>
     private static bool TryValidateTrafficMonitorDirectory(string directory, out string message)
     {
-        if (string.IsNullOrWhiteSpace(directory))
+        string normalized = NormalizePluginDirectory(directory);
+        if (normalized.Length == 0)
         {
             message = "TrafficMonitor folder is not configured. Use Browse or Auto Detect first.";
             return false;
         }
 
-        if (!TrafficMonitorLocator.IsTrafficMonitorDirectory(directory))
+        if (!TrafficMonitorLocator.IsTrafficMonitorDirectory(normalized))
         {
-            message = $"TrafficMonitor.exe was not found in:\n{directory}";
+            message = $"TrafficMonitor.exe was not found in:\n{normalized}";
             return false;
         }
 

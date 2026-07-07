@@ -24,11 +24,45 @@
             </ResourceDictionary.MergedDictionaries>
 
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+            <local:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
             <sys:Int32 x:Key="ToolTipInitialShowDelay">120</sys:Int32>
             <sys:Int32 x:Key="ToolTipShowDuration">6000</sys:Int32>
 
             <Style TargetType="{x:Type ToolTip}">
                 <Setter Property="FontFamily" Value="Segoe UI" />
+            </Style>
+
+            <!-- Rotating glyph used while plugin auto detect runs -->
+            <Style x:Key="DetectSpinnerStyle" TargetType="{x:Type TextBlock}">
+                <Setter Property="Text" Value="&#xE72C;" />
+                <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
+                <Setter Property="RenderTransform">
+                    <Setter.Value>
+                        <RotateTransform Angle="0" />
+                    </Setter.Value>
+                </Setter>
+                <Style.Triggers>
+                    <Trigger Property="IsVisible" Value="True">
+                        <Trigger.EnterActions>
+                            <BeginStoryboard Name="SpinStoryboard">
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="(TextBlock.RenderTransform).(RotateTransform.Angle)"
+                                                     From="0"
+                                                     To="360"
+                                                     Duration="0:0:0.9"
+                                                     RepeatBehavior="Forever" />
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </Trigger.EnterActions>
+                        <Trigger.ExitActions>
+                            <StopStoryboard BeginStoryboardName="SpinStoryboard" />
+                        </Trigger.ExitActions>
+                    </Trigger>
+                </Style.Triggers>
             </Style>
 
             <!-- Icon button (shared: home refresh + settings save) -->
@@ -566,67 +600,95 @@
                         <TextBlock Text="Plugins"
                                    Style="{StaticResource SettingsSectionHeaderStyle}" />
 
-                        <StackPanel Margin="{StaticResource SettingsRowMargin}">
-                            <TextBlock Text="LiteMonitor folder"
-                                       Margin="0,0,0,6"
-                                       Style="{StaticResource SettingsRowTitleStyle}" />
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBox Text="{Binding LiteMonitorDir, UpdateSourceTrigger=PropertyChanged}"
-                                         Style="{StaticResource SettingsTextBoxStyle}" />
-                                <Button Grid.Column="1"
-                                        Command="{Binding BrowseLiteMonitorCommand}"
-                                        Content="&#xE8B7;"
-                                        ToolTip="Browse"
-                                        Style="{StaticResource SettingsGlyphButtonStyle}" />
-                                <Button Grid.Column="2"
-                                        Command="{Binding AutoDetectLiteMonitorCommand}"
-                                        Content="&#xE721;"
-                                        ToolTip="Detect"
-                                        Style="{StaticResource SettingsGlyphButtonStyle}" />
-                                <Button Grid.Column="3"
-                                        Command="{Binding InstallLiteMonitorPluginCommand}"
-                                        Content="&#xE896;"
-                                        ToolTip="Install"
-                                        Style="{StaticResource SettingsPrimaryButtonStyle}" />
-                            </Grid>
-                        </StackPanel>
+                        <Grid Margin="{StaticResource SettingsRowMargin}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="LiteMonitor"
+                                           Style="{StaticResource SettingsRowTitleStyle}" />
+                                <Grid Margin="0,2,8,0">
+                                    <TextBlock Text="{Binding LiteMonitorDirDisplay}"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTip="{Binding LiteMonitorDirDisplay}"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               FontSize="12"
+                                               Visibility="{Binding IsDetectingLiteMonitor, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
+                                    <StackPanel Orientation="Horizontal"
+                                                Visibility="{Binding IsDetectingLiteMonitor, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <TextBlock Style="{StaticResource DetectSpinnerStyle}" />
+                                        <TextBlock Text="Detecting..."
+                                                   Margin="6,0,0,0"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                   FontSize="12"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                            <Button Grid.Column="1"
+                                    Command="{Binding BrowseLiteMonitorCommand}"
+                                    Content="&#xE8B7;"
+                                    ToolTip="Browse"
+                                    Style="{StaticResource SettingsGlyphButtonStyle}" />
+                            <Button Grid.Column="2"
+                                    Command="{Binding AutoDetectLiteMonitorCommand}"
+                                    Content="&#xE721;"
+                                    ToolTip="Detect"
+                                    Style="{StaticResource SettingsGlyphButtonStyle}" />
+                            <Button Grid.Column="3"
+                                    Command="{Binding InstallLiteMonitorPluginCommand}"
+                                    Content="&#xE896;"
+                                    ToolTip="Install"
+                                    Style="{StaticResource SettingsPrimaryButtonStyle}" />
+                        </Grid>
 
-                        <StackPanel Margin="{StaticResource SettingsSectionEndMargin}">
-                            <TextBlock Text="TrafficMonitor folder"
-                                       Margin="0,0,0,6"
-                                       Style="{StaticResource SettingsRowTitleStyle}" />
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBox Text="{Binding TrafficMonitorDir, UpdateSourceTrigger=PropertyChanged}"
-                                         Style="{StaticResource SettingsTextBoxStyle}" />
-                                <Button Grid.Column="1"
-                                        Command="{Binding BrowseTrafficMonitorCommand}"
-                                        Content="&#xE8B7;"
-                                        ToolTip="Browse"
-                                        Style="{StaticResource SettingsGlyphButtonStyle}" />
-                                <Button Grid.Column="2"
-                                        Command="{Binding AutoDetectTrafficMonitorCommand}"
-                                        Content="&#xE721;"
-                                        ToolTip="Detect"
-                                        Style="{StaticResource SettingsGlyphButtonStyle}" />
-                                <Button Grid.Column="3"
-                                        Command="{Binding InstallTrafficMonitorPluginCommand}"
-                                        Content="&#xE896;"
-                                        ToolTip="Install"
-                                        Style="{StaticResource SettingsPrimaryButtonStyle}" />
-                            </Grid>
-                        </StackPanel>
+                        <Grid Margin="{StaticResource SettingsSectionEndMargin}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="TrafficMonitor"
+                                           Style="{StaticResource SettingsRowTitleStyle}" />
+                                <Grid Margin="0,2,8,0">
+                                    <TextBlock Text="{Binding TrafficMonitorDirDisplay}"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTip="{Binding TrafficMonitorDirDisplay}"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               FontSize="12"
+                                               Visibility="{Binding IsDetectingTrafficMonitor, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
+                                    <StackPanel Orientation="Horizontal"
+                                                Visibility="{Binding IsDetectingTrafficMonitor, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <TextBlock Style="{StaticResource DetectSpinnerStyle}" />
+                                        <TextBlock Text="Detecting..."
+                                                   Margin="6,0,0,0"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                   FontSize="12"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                            <Button Grid.Column="1"
+                                    Command="{Binding BrowseTrafficMonitorCommand}"
+                                    Content="&#xE8B7;"
+                                    ToolTip="Browse"
+                                    Style="{StaticResource SettingsGlyphButtonStyle}" />
+                            <Button Grid.Column="2"
+                                    Command="{Binding AutoDetectTrafficMonitorCommand}"
+                                    Content="&#xE721;"
+                                    ToolTip="Detect"
+                                    Style="{StaticResource SettingsGlyphButtonStyle}" />
+                            <Button Grid.Column="3"
+                                    Command="{Binding InstallTrafficMonitorPluginCommand}"
+                                    Content="&#xE896;"
+                                    ToolTip="Install"
+                                    Style="{StaticResource SettingsPrimaryButtonStyle}" />
+                        </Grid>
 
                         <Border Style="{StaticResource SettingsSectionDividerStyle}" />
 

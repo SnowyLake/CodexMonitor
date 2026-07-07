@@ -60,6 +60,8 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
     private int m_AcrylicOpacityPercent = CodexMonitorDefaults.AcrylicOpacityPercent;
     private bool m_IsRefreshing;
     private bool m_IsModalOpen;
+    private bool m_IsDetectingLiteMonitor;
+    private bool m_IsDetectingTrafficMonitor;
 
     private SettingsStatus m_SettingsStatus = SettingsStatus.Clean;
     private SettingsStatus m_SettingsBaseline = SettingsStatus.Clean;
@@ -170,10 +172,13 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
         {
             if (SetField(ref m_LiteMonitorDir, value))
             {
+                OnPropertyChanged(nameof(LiteMonitorDirDisplay));
                 EvaluateDirtyState();
             }
         }
     }
+
+    public string LiteMonitorDirDisplay => FormatPluginPath(m_LiteMonitorDir);
 
     public string TrafficMonitorDir
     {
@@ -182,9 +187,24 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
         {
             if (SetField(ref m_TrafficMonitorDir, value))
             {
+                OnPropertyChanged(nameof(TrafficMonitorDirDisplay));
                 EvaluateDirtyState();
             }
         }
+    }
+
+    public string TrafficMonitorDirDisplay => FormatPluginPath(m_TrafficMonitorDir);
+
+    public bool IsDetectingLiteMonitor
+    {
+        get => m_IsDetectingLiteMonitor;
+        set => SetField(ref m_IsDetectingLiteMonitor, value);
+    }
+
+    public bool IsDetectingTrafficMonitor
+    {
+        get => m_IsDetectingTrafficMonitor;
+        set => SetField(ref m_IsDetectingTrafficMonitor, value);
     }
 
     public string PortText
@@ -309,8 +329,8 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
         InstallTrafficMonitorPluginCommand = new RelayCommand(_ => InstallTrafficMonitorPluginRequested?.Invoke(this, EventArgs.Empty));
         BrowseLiteMonitorCommand = new RelayCommand(_ => BrowseMonitorFolder("Select LiteMonitor folder", LiteMonitorDir, value => LiteMonitorDir = value));
         BrowseTrafficMonitorCommand = new RelayCommand(_ => BrowseMonitorFolder("Select TrafficMonitor folder", TrafficMonitorDir, value => TrafficMonitorDir = value));
-        AutoDetectLiteMonitorCommand = new RelayCommand(_ => AutoDetectLiteMonitor());
-        AutoDetectTrafficMonitorCommand = new RelayCommand(_ => AutoDetectTrafficMonitor());
+        AutoDetectLiteMonitorCommand = new RelayCommand(async _ => await DetectLiteMonitorAsync(showNotFound: true));
+        AutoDetectTrafficMonitorCommand = new RelayCommand(async _ => await DetectTrafficMonitorAsync(showNotFound: true));
         ExitCommand = new RelayCommand(_ => ExitRequested?.Invoke(this, EventArgs.Empty));
     }
 
@@ -528,33 +548,91 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Auto detects the LiteMonitor directory.
+    /// Auto detects the LiteMonitor directory off the UI thread.
     /// </summary>
-    private void AutoDetectLiteMonitor()
+    public async Task DetectLiteMonitorAsync(bool showNotFound)
     {
-        string detected = LiteMonitorLocator.AutoDetect(LiteMonitorDir);
-        if (string.IsNullOrWhiteSpace(detected))
+        if (m_IsDetectingLiteMonitor)
         {
-            ShowModalMessage("LiteMonitor was not found.");
             return;
         }
 
-        LiteMonitorDir = detected;
+        IsDetectingLiteMonitor = true;
+        try
+        {
+            // Manual detect always runs a full scan instead of short-circuiting on the current path.
+            string detected = await Task.Run(() => LiteMonitorLocator.AutoDetect()).ConfigureAwait(true);
+            if (string.IsNullOrWhiteSpace(detected))
+            {
+                LiteMonitorDir = CodexMonitorDefaults.PluginPathNone;
+                if (showNotFound)
+                {
+                    ShowModalMessage("LiteMonitor was not found.");
+                }
+
+                return;
+            }
+
+            LiteMonitorDir = detected;
+        }
+        finally
+        {
+            IsDetectingLiteMonitor = false;
+        }
     }
 
     /// <summary>
-    /// Auto detects the TrafficMonitor directory.
+    /// Auto detects the TrafficMonitor directory off the UI thread.
     /// </summary>
-    private void AutoDetectTrafficMonitor()
+    public async Task DetectTrafficMonitorAsync(bool showNotFound)
     {
-        string detected = TrafficMonitorLocator.AutoDetect(TrafficMonitorDir);
-        if (string.IsNullOrWhiteSpace(detected))
+        if (m_IsDetectingTrafficMonitor)
         {
-            ShowModalMessage("TrafficMonitor was not found.");
             return;
         }
 
-        TrafficMonitorDir = detected;
+        IsDetectingTrafficMonitor = true;
+        try
+        {
+            // Manual detect always runs a full scan instead of short-circuiting on the current path.
+            string detected = await Task.Run(() => TrafficMonitorLocator.AutoDetect()).ConfigureAwait(true);
+            if (string.IsNullOrWhiteSpace(detected))
+            {
+                TrafficMonitorDir = CodexMonitorDefaults.PluginPathNone;
+                if (showNotFound)
+                {
+                    ShowModalMessage("TrafficMonitor was not found.");
+                }
+
+                return;
+            }
+
+            TrafficMonitorDir = detected;
+        }
+        finally
+        {
+            IsDetectingTrafficMonitor = false;
+        }
+    }
+
+    /// <summary>
+    /// Formats a plugin directory for the secondary path label.
+    /// </summary>
+    private static string FormatPluginPath(string? directory)
+    {
+        string value = PluginPathOrEmpty(directory);
+        return $"Path: {(value.Length == 0 ? "Not set" : value)}";
+    }
+
+    /// <summary>
+    /// Returns the configured directory, treating the None sentinel as empty.
+    /// </summary>
+    public static string PluginPathOrEmpty(string? directory)
+    {
+        string value = (directory ?? string.Empty).Trim();
+        return string.Equals(value, CodexMonitorDefaults.PluginPathNone, StringComparison.OrdinalIgnoreCase)
+            ? string.Empty
+            : value;
     }
 
     /// <summary>

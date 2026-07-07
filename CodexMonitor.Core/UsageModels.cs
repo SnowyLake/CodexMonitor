@@ -24,6 +24,7 @@ public static class CodexMonitorDefaults
     public const string PluginsDirectoryName = "Plugins";
     public const string LiteMonitorPluginSubdirectory = "LiteMonitor";
     public const string TrafficMonitorPluginSubdirectory = "TrafficMonitor";
+    public const string PluginPathNone = "None";
     public const string UsageEndpointPath = "/codex-monitor";
     public const string UsageTextEndpointPath = "/codex-monitor.txt";
     public const string HealthEndpointPath = "/health";
