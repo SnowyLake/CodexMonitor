@@ -18,7 +18,6 @@ constexpr wchar_t k_ConfigSection[] = L"CodexMonitor";
 constexpr wchar_t k_ConfigUsageUrlKey[] = L"UsageUrl";
 constexpr wchar_t k_OptionsWindowClassName[] = L"CodexMonitorOptionsWindow";
 constexpr int k_OptionsUrlEditId = 1001;
-constexpr size_t k_DisplayLabelWidth = 8;
 constexpr wchar_t k_FallbackValue[] = L"None";
 
 HMODULE g_Module = nullptr;
@@ -501,7 +500,7 @@ public:
     /// Updates the displayed item value.
     void SetValue(std::wstring value)
     {
-        m_Value = value.empty() ? k_FallbackValue : BuildValueText(value);
+        m_Value = value.empty() ? k_FallbackValue : std::move(value);
     }
 
     /// Updates the displayed item value to the fallback text.
@@ -541,20 +540,6 @@ public:
     }
 
 private:
-    /// Builds the value text with label-relative padding.
-    std::wstring BuildValueText(const std::wstring& value) const
-    {
-        std::wstring text;
-        if (m_Label.size() < k_DisplayLabelWidth)
-        {
-            text.append(k_DisplayLabelWidth - m_Label.size(), L' ');
-        }
-
-        text.push_back(L' ');
-        text += value;
-        return text;
-    }
-
     std::wstring m_Name;
     std::wstring m_Id;
     std::wstring m_Label;
@@ -567,8 +552,8 @@ class CodexMonitorPlugin final : public ITMPlugin
 public:
     /// Creates the TrafficMonitor plugin singleton.
     CodexMonitorPlugin()
-        : m_FiveHourItem(L"Codex 5-Hour", L"CodexMonitor5H", L"Codex-5H", L" 100% [4h 59m]"),
-          m_SevenDayItem(L"Codex 7-Day", L"CodexMonitor7D", L"Codex-7D", L" 100% [6d 23h]"),
+        : m_FiveHourItem(L"Codex 5-Hour", L"CodexMonitor5H", L"Codex-5H", L"100% 4h59m"),
+          m_SevenDayItem(L"Codex 7-Day", L"CodexMonitor7D", L"Codex-7D", L"100% 6d23h"),
           m_Tooltip(L"CodexMonitor waiting for data")
     {
     }

@@ -37,14 +37,14 @@
       "key": "codex_5h",
       "label": "Codex 5-Hour",
       "short_label": "Codex-5H",
-      "format_val": " {{codex_5h_display}}",
+      "format_val": "{{codex_5h_display}}",
       "unit": ""
     },
     {
       "key": "codex_7d",
       "label": "Codex 7-Day",
       "short_label": "Codex-7D",
-      "format_val": " {{codex_7d_display}}",
+      "format_val": "{{codex_7d_display}}",
       "unit": ""
     }
   ]

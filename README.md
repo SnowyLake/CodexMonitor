@@ -76,10 +76,10 @@
 
 额度到期倒计时显示规则:
 
-- 5-Hour 额度字段值使用 `88% [2h 45m]` 格式.
-- 7-Day 额度字段值使用 `66% [3d 04h]` 格式.
+- 5-Hour 额度字段值使用 `88% 2h45m` 格式.
+- 7-Day 额度字段值使用 `66% 3d04h` 格式.
 - 分钟或小时小于 10 时保留两位数字, 例如 `05m` 和 `04h`.
-- JSON 接口的 `display.codex_5h` 和 `display.codex_7d` 返回纯额度值. TrafficMonitor 原生插件读取 `/codex-monitor.txt` 的两行文本值. 两个插件都保留宿主自己的 label, 并在 value 前按 `Codex 7-Day` 的宽度补空格.
+- JSON 接口的 `display.codex_5h` 和 `display.codex_7d` 返回纯额度值. TrafficMonitor 原生插件读取 `/codex-monitor.txt` 的两行文本值. 两个插件都保留宿主自己的 label, value 不再补空格对齐, 由宿主自行排布.
 
 ## 安全与隐私
 

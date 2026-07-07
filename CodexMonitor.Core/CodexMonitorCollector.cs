@@ -138,8 +138,8 @@ public sealed class CodexMonitorCollector
     /// </summary>
     private static UsageDisplay BuildDisplay(UsageLimit fiveHour, UsageLimit sevenDay)
     {
-        string codex5HDisplay = $"{fiveHour.RemainingPercent}% [{fiveHour.ResetLabel}]";
-        string codex7DDisplay = $"{sevenDay.RemainingPercent}% [{sevenDay.ResetLabel}]";
+        string codex5HDisplay = $"{fiveHour.RemainingPercent}% {fiveHour.ResetLabel}";
+        string codex7DDisplay = $"{sevenDay.RemainingPercent}% {sevenDay.ResetLabel}";
         return new UsageDisplay
         {
             Codex5H = codex5HDisplay,
@@ -249,7 +249,7 @@ public sealed class CodexMonitorCollector
 
         TimeSpan remaining = GetRemainingTime(epochSeconds, now);
         long hours = (long)Math.Floor(remaining.TotalHours);
-        return string.Create(CultureInfo.InvariantCulture, $"{hours}h {remaining.Minutes:D2}m");
+        return string.Create(CultureInfo.InvariantCulture, $"{hours}h{remaining.Minutes:D2}m");
     }
 
     /// <summary>
@@ -264,7 +264,7 @@ public sealed class CodexMonitorCollector
 
         TimeSpan remaining = GetRemainingTime(epochSeconds, now);
         long days = (long)Math.Floor(remaining.TotalDays);
-        return string.Create(CultureInfo.InvariantCulture, $"{days}d {remaining.Hours:D2}h");
+        return string.Create(CultureInfo.InvariantCulture, $"{days}d{remaining.Hours:D2}h");
     }
 
     /// <summary>
