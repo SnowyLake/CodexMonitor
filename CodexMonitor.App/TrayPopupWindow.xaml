@@ -570,7 +570,7 @@
                                    FontSize="13.5"
                                    Visibility="{Binding ShowTodayTokenCost, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <TextBlock.Text>
-                                <MultiBinding StringFormat="{}{0} · {1} tokens">
+                                <MultiBinding StringFormat="{}{0} · {1}">
                                     <Binding Path="TodayTokenCostDisplay.Cost" />
                                     <Binding Path="TodayTokenCostDisplay.Tokens" />
                                 </MultiBinding>
@@ -594,7 +594,7 @@
                                    FontSize="13.5"
                                    Visibility="{Binding ShowYesterdayTokenCost, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <TextBlock.Text>
-                                <MultiBinding StringFormat="{}{0} · {1} tokens">
+                                <MultiBinding StringFormat="{}{0} · {1}">
                                     <Binding Path="YesterdayTokenCostDisplay.Cost" />
                                     <Binding Path="YesterdayTokenCostDisplay.Tokens" />
                                 </MultiBinding>
@@ -618,7 +618,7 @@
                                    FontSize="13.5"
                                    Visibility="{Binding ShowWeekTokenCost, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <TextBlock.Text>
-                                <MultiBinding StringFormat="{}{0} · {1} tokens">
+                                <MultiBinding StringFormat="{}{0} · {1}">
                                     <Binding Path="WeekTokenCostDisplay.Cost" />
                                     <Binding Path="WeekTokenCostDisplay.Tokens" />
                                 </MultiBinding>
@@ -642,7 +642,7 @@
                                    FontSize="13.5"
                                    Visibility="{Binding ShowMonthTokenCost, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <TextBlock.Text>
-                                <MultiBinding StringFormat="{}{0} · {1} tokens">
+                                <MultiBinding StringFormat="{}{0} · {1}">
                                     <Binding Path="MonthTokenCostDisplay.Cost" />
                                     <Binding Path="MonthTokenCostDisplay.Tokens" />
                                 </MultiBinding>
@@ -666,7 +666,7 @@
                                    FontSize="13.5"
                                    Visibility="{Binding ShowSevenDayTokenCost, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <TextBlock.Text>
-                                <MultiBinding StringFormat="{}{0} · {1} tokens">
+                                <MultiBinding StringFormat="{}{0} · {1}">
                                     <Binding Path="SevenDayTokenCostDisplay.Cost" />
                                     <Binding Path="SevenDayTokenCostDisplay.Tokens" />
                                 </MultiBinding>
@@ -688,7 +688,7 @@
                                    FontSize="13.5"
                                    Visibility="{Binding ShowThirtyDayTokenCost, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <TextBlock.Text>
-                                <MultiBinding StringFormat="{}{0} · {1} tokens">
+                                <MultiBinding StringFormat="{}{0} · {1}">
                                     <Binding Path="ThirtyDayTokenCostDisplay.Cost" />
                                     <Binding Path="ThirtyDayTokenCostDisplay.Tokens" />
                                 </MultiBinding>
