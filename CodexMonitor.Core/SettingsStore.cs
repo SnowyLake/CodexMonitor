@@ -2,6 +2,19 @@ using System.Text.Json;
 
 namespace CodexMonitor.Core;
 
+[Flags]
+public enum TokenCostItem
+{
+    None = 0,
+    Today = 1 << 0,
+    Yesterday = 1 << 1,
+    Week = 1 << 2,
+    Month = 1 << 3,
+    SevenDay = 1 << 4,
+    ThirtyDay = 1 << 5,
+    All = Today | Yesterday | Week | Month | SevenDay | ThirtyDay,
+}
+
 public sealed class AppSettings
 {
     public const string ThemeModeSystem = "System";
@@ -9,6 +22,10 @@ public sealed class AppSettings
     public const string ThemeModeLight = "Light";
 
     public const string ThemeModeDark = "Dark";
+
+    public const string TokenUnitEnglish = "English unit";
+
+    public const string TokenUnitChinese = "Chinese unit";
 
     public string LiteMonitorDir { get; set; } = string.Empty;
 
@@ -21,6 +38,10 @@ public sealed class AppSettings
     public bool StartWithWindows { get; set; }
 
     public string ThemeMode { get; set; } = ThemeModeSystem;
+
+    public string TokenUnit { get; set; } = TokenUnitEnglish;
+
+    public TokenCostItem TokenCostItems { get; set; } = TokenCostItem.All;
 
     public bool AcrylicEnabled { get; set; } = CodexMonitorDefaults.AcrylicEnabled;
 
@@ -55,6 +76,8 @@ public sealed class AppSettings
         LiteMonitorDir = LiteMonitorDir.Trim();
         TrafficMonitorDir = TrafficMonitorDir.Trim();
         ThemeMode = NormalizeThemeMode(ThemeMode);
+        TokenUnit = NormalizeTokenUnit(TokenUnit);
+        TokenCostItems &= TokenCostItem.All;
         return this;
     }
 
@@ -69,6 +92,19 @@ public sealed class AppSettings
             "dark" => ThemeModeDark,
             _ => ThemeModeSystem,
         };
+    }
+
+    /// <summary>
+    /// Normalizes a token unit string to a supported value.
+    /// </summary>
+    private static string NormalizeTokenUnit(string? tokenUnit)
+    {
+        string normalized = tokenUnit?.Trim() ?? string.Empty;
+        return string.Equals(normalized, TokenUnitChinese, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, "万/亿", StringComparison.Ordinal)
+            || string.Equals(normalized, "K/W/E", StringComparison.OrdinalIgnoreCase)
+            ? TokenUnitChinese
+            : TokenUnitEnglish;
     }
 }
 

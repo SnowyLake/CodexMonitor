@@ -9,6 +9,7 @@ public sealed class CodexMonitorCollector
 {
     private const string k_FiveHourDisplayLabel = "Codex 5-Hour";
     private const string k_SevenDayDisplayLabel = "Codex 7-Day";
+    private const string k_ResetCreditsEndpoint = "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits";
 
     private static readonly HttpClient s_HttpClient = new()
     {
@@ -88,7 +89,13 @@ public sealed class CodexMonitorCollector
             }
 
             using JsonDocument document = JsonDocument.Parse(body);
-            return BuildOfficialResponse(codexDirectory, authPath, document.RootElement, now, showResetTimeInPlugins, useAbsoluteResetTime);
+            UsageResponse usage = BuildOfficialResponse(codexDirectory, authPath, document.RootElement, now, showResetTimeInPlugins, useAbsoluteResetTime);
+            if (usage.Available)
+            {
+                usage.LimitResetCredits = CollectLimitResetCredits(credentials, now);
+            }
+
+            return usage;
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException or IOException)
         {
@@ -134,6 +141,77 @@ public sealed class CodexMonitorCollector
                 SevenDay = sevenDay,
             },
             Display = display,
+        };
+    }
+
+    /// <summary>
+    /// Collects reset credit availability without affecting the main quota response.
+    /// </summary>
+    private LimitResetCredits CollectLimitResetCredits(CodexCredentials credentials, DateTimeOffset now)
+    {
+        if (string.IsNullOrWhiteSpace(credentials.AccountId))
+        {
+            return new LimitResetCredits();
+        }
+
+        using HttpRequestMessage request = new(HttpMethod.Get, k_ResetCreditsEndpoint);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credentials.AccessToken);
+        request.Headers.TryAddWithoutValidation("ChatGPT-Account-Id", credentials.AccountId);
+        request.Headers.TryAddWithoutValidation("OpenAI-Beta", "codex-1");
+        request.Headers.TryAddWithoutValidation("originator", "Codex Desktop");
+
+        try
+        {
+            using HttpResponseMessage response = m_HttpClient.Send(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return new LimitResetCredits();
+            }
+
+            using JsonDocument document = JsonDocument.Parse(response.Content.ReadAsStringAsync().GetAwaiter().GetResult());
+            return BuildLimitResetCredits(document.RootElement, now);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException or IOException)
+        {
+            return new LimitResetCredits();
+        }
+    }
+
+    /// <summary>
+    /// Builds reset credit data from the official credit endpoint JSON.
+    /// </summary>
+    private static LimitResetCredits BuildLimitResetCredits(JsonElement root, DateTimeOffset now)
+    {
+        int availableCount = Math.Max(0, GetInt32Property(root, "available_count", 0));
+        List<DateTimeOffset> expiryTimes = [];
+        if (availableCount > 0 && root.TryGetProperty("credits", out JsonElement credits) && credits.ValueKind == JsonValueKind.Array)
+        {
+            foreach (JsonElement credit in credits.EnumerateArray())
+            {
+                if (GetStringProperty(credit, "status", string.Empty) != "available" ||
+                    !DateTimeOffset.TryParse(GetStringProperty(credit, "expires_at", string.Empty), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTimeOffset expiry) ||
+                    expiry < now)
+                {
+                    continue;
+                }
+
+                expiryTimes.Add(expiry);
+            }
+        }
+
+        expiryTimes.Sort();
+        List<string> expiryTimesLocal = [];
+        foreach (DateTimeOffset expiry in expiryTimes)
+        {
+            expiryTimesLocal.Add(expiry.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture));
+        }
+
+        return new LimitResetCredits
+        {
+            Available = true,
+            AvailableCount = availableCount,
+            NearestExpiryLocal = expiryTimesLocal.Count > 0 ? expiryTimesLocal[0] : "N/A",
+            ExpiryTimesLocal = expiryTimesLocal,
         };
     }
 

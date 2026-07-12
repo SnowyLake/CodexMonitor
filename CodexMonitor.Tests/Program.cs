@@ -20,6 +20,7 @@ internal static class Program
         await RunAsync("uses countdown label for next-day seven day reset", TestNextDaySevenDayCountdownLabelAsync);
         await RunAsync("returns unavailable response without OAuth credentials", TestEmptyResponseAsync);
         await RunAsync("collects official Codex quota", TestOfficialQuotaAsync);
+        await RunAsync("collects Codex reset credits", TestLimitResetCreditsAsync);
         await RunAsync("omits reset suffix when disabled", TestDisplayWithoutResetSuffixAsync);
         await RunAsync("uses absolute reset time when enabled", TestAbsoluteResetTimeAsync);
         await RunAsync("serves health and usage over HTTP", TestHttpServerAsync);
@@ -28,6 +29,7 @@ internal static class Program
         await RunAsync("stores settings beside the executable", TestSettingsStorePathAsync);
         await RunAsync("repairs missing settings fields", TestSettingsStoreRepairsMissingFieldsAsync);
         await RunAsync("normalizes settings refresh interval", TestSettingsNormalizeAsync);
+        await RunAsync("collects exact Codex token cost", TestTokenCostCollectorAsync);
         Console.WriteLine(s_Failures == 0 ? "All C# tests passed." : $"C# tests failed: {s_Failures}");
         return s_Failures == 0 ? 0 : 1;
     }
@@ -321,6 +323,8 @@ internal static class Program
         AssertEqual(string.Empty, settings.TrafficMonitorDir, "default TrafficMonitor path");
         AssertEqual(CodexMonitorDefaults.RefreshIntervalMinutes, settings.RefreshIntervalMinutes, "default refresh interval");
         AssertEqual(AppSettings.ThemeModeSystem, settings.ThemeMode, "default theme mode");
+        AssertEqual(AppSettings.TokenUnitEnglish, settings.TokenUnit, "default token unit");
+        AssertEqual(TokenCostItem.All, settings.TokenCostItems, "default token cost items");
 
         string repairedJson = File.ReadAllText(store.SettingsPath);
         using JsonDocument document = JsonDocument.Parse(repairedJson);
@@ -328,12 +332,14 @@ internal static class Program
         AssertTrue(document.RootElement.TryGetProperty(nameof(AppSettings.TrafficMonitorDir), out _), "repaired settings should include TrafficMonitor path");
         AssertTrue(document.RootElement.TryGetProperty(nameof(AppSettings.RefreshIntervalMinutes), out _), "repaired settings should include refresh interval");
         AssertTrue(document.RootElement.TryGetProperty(nameof(AppSettings.ThemeMode), out _), "repaired settings should include theme mode");
+        AssertTrue(document.RootElement.TryGetProperty(nameof(AppSettings.TokenUnit), out _), "repaired settings should include token unit");
+        AssertTrue(document.RootElement.TryGetProperty(nameof(AppSettings.TokenCostItems), out _), "repaired settings should include token cost items");
         AssertTrue(!document.RootElement.TryGetProperty("FirstRunCompleted", out _), "repaired settings should not include first-run flag");
         return Task.CompletedTask;
     }
 
     /// <summary>
-    /// Tests default refresh interval normalization.
+    /// Tests settings value normalization.
     /// </summary>
     private static Task TestSettingsNormalizeAsync()
     {
@@ -342,6 +348,8 @@ internal static class Program
             Port = -1,
             RefreshIntervalMinutes = 0,
             ThemeMode = "unexpected",
+            TokenUnit = AppSettings.TokenUnitChinese,
+            TokenCostItems = TokenCostItem.Today | (TokenCostItem)(1 << 10),
         };
 
         settings.Normalize();
@@ -349,13 +357,106 @@ internal static class Program
         AssertEqual(CodexMonitorDefaults.Port, settings.Port, "default port");
         AssertEqual(CodexMonitorDefaults.RefreshIntervalMinutes, settings.RefreshIntervalMinutes, "default refresh interval");
         AssertEqual(AppSettings.ThemeModeSystem, settings.ThemeMode, "default theme mode");
+        AssertEqual(AppSettings.TokenUnitChinese, settings.TokenUnit, "Chinese token unit");
+        AssertEqual(TokenCostItem.Today, settings.TokenCostItems, "supported token cost items");
+        settings.TokenUnit = "M/B";
+        settings.Normalize();
+        AssertEqual(AppSettings.TokenUnitEnglish, settings.TokenUnit, "legacy English token unit");
+        settings.TokenUnit = "万/亿";
+        settings.Normalize();
+        AssertEqual(AppSettings.TokenUnitChinese, settings.TokenUnit, "legacy Chinese token unit");
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Tests reset credit parsing and local expiry conversion.
+    /// </summary>
+    private static Task TestLimitResetCreditsAsync()
+    {
+        using TempDirectory temp = new();
+        DateTimeOffset now = new(2026, 7, 1, 12, 0, 0, TimeSpan.FromHours(8));
+        DateTimeOffset nearestExpiry = new(2026, 7, 14, 18, 30, 0, TimeSpan.Zero);
+        string resetCreditsBody = JsonSerializer.Serialize(new
+        {
+            available_count = 2,
+            credits = new[]
+            {
+                new { status = "available", expires_at = nearestExpiry.AddDays(1).ToString("O") },
+                new { status = "redeemed", expires_at = nearestExpiry.AddHours(-1).ToString("O") },
+                new { status = "available", expires_at = nearestExpiry.ToString("O") },
+            },
+        });
+        CodexMonitorCollector collector = CreateOfficialCollector(temp.Path, now, now.AddHours(1).ToUnixTimeSeconds(), now.AddDays(2).ToUnixTimeSeconds(), 10.0, 20.0, out HttpClient client, resetCreditsBody);
+        using HttpClient _ = client;
+
+        UsageResponse response = collector.Collect(temp.Path);
+
+        AssertTrue(response.LimitResetCredits.Available, "reset credits should be available");
+        AssertEqual(2, response.LimitResetCredits.AvailableCount, "reset credit count");
+        AssertEqual(nearestExpiry.ToLocalTime().ToString("yyyy-MM-dd HH:mm"), response.LimitResetCredits.NearestExpiryLocal, "nearest local reset credit expiry");
+        AssertEqual(2, response.LimitResetCredits.ExpiryTimesLocal.Count, "reset credit expiry count");
+        AssertEqual(nearestExpiry.ToLocalTime().ToString("yyyy-MM-dd HH:mm"), response.LimitResetCredits.ExpiryTimesLocal[0], "first reset credit expiry");
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Verifies cumulative token deltas and cached input pricing.
+    /// </summary>
+    private static Task TestTokenCostCollectorAsync()
+    {
+        using TempDirectory temp = new();
+        string pricingPath = Path.Combine(temp.Path, "pricing.json");
+        File.WriteAllText(pricingPath, "{\"gpt-test\":{\"input\":2,\"cachedInput\":0.2,\"output\":10}}");
+        string sessions = Path.Combine(temp.Path, "sessions", "2026", "07", "11");
+        Directory.CreateDirectory(sessions);
+        string sessionPath = Path.Combine(sessions, "rollout.jsonl");
+        File.WriteAllLines(sessionPath,
+        [
+            "{\"type\":\"session_meta\",\"payload\":{\"id\":\"thread-1\",\"source\":\"cli\"}}",
+            "{\"type\":\"turn_context\",\"payload\":{\"model\":\"gpt-test\"}}",
+            "{\"timestamp\":\"2026-07-11T09:00:00+08:00\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":1000,\"cached_input_tokens\":400,\"output_tokens\":100}}}}",
+            "{\"timestamp\":\"2026-07-11T10:00:00+08:00\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":2500,\"cached_input_tokens\":1000,\"output_tokens\":300}}}}",
+        ]);
+        File.WriteAllLines(Path.Combine(sessions, "yesterday.jsonl"),
+        [
+            "{\"type\":\"turn_context\",\"payload\":{\"model\":\"gpt-test\"}}",
+            "{\"timestamp\":\"2026-07-10T10:00:00+08:00\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":500,\"cached_input_tokens\":100,\"output_tokens\":50}}}}",
+        ]);
+        File.WriteAllLines(Path.Combine(sessions, "unknown-model.jsonl"),
+        [
+            "{\"type\":\"turn_context\",\"payload\":{\"model\":\"unknown-model\"}}",
+            "{\"timestamp\":\"2026-07-11T11:00:00+08:00\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":100,\"cached_input_tokens\":0,\"output_tokens\":0}}}}",
+        ]);
+        File.WriteAllLines(Path.Combine(sessions, "last-sunday.jsonl"),
+        [
+            "{\"type\":\"turn_context\",\"payload\":{\"model\":\"gpt-test\"}}",
+            "{\"timestamp\":\"2026-07-05T10:00:00+08:00\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":70,\"cached_input_tokens\":0,\"output_tokens\":0}}}}",
+        ]);
+        File.WriteAllLines(Path.Combine(sessions, "last-month.jsonl"),
+        [
+            "{\"type\":\"turn_context\",\"payload\":{\"model\":\"gpt-test\"}}",
+            "{\"timestamp\":\"2026-06-30T10:00:00+08:00\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":40,\"cached_input_tokens\":0,\"output_tokens\":0}}}}",
+        ]);
+
+        using FileStream activeWriter = new(sessionPath, FileMode.Open, FileAccess.Write, FileShare.ReadWrite);
+        TokenCostCollector collector = new(pricingPath);
+        TokenCostSummary summary = collector.CollectToday(temp.Path, new DateTimeOffset(2026, 7, 11, 12, 0, 0, TimeSpan.FromHours(8)));
+        AssertEqual(2900L, summary.TotalTokens, "today total tokens");
+        AssertEqual(0.0062m, summary.CostUsd, "today API-equivalent cost");
+        TokenCostStatistics statistics = collector.Collect(temp.Path, new DateTimeOffset(2026, 7, 11, 12, 0, 0, TimeSpan.FromHours(8)));
+        AssertEqual(550L, statistics.Yesterday.TotalTokens, "yesterday total tokens");
+        AssertEqual(3450L, statistics.Week.TotalTokens, "calendar week total tokens");
+        AssertEqual(3520L, statistics.Month.TotalTokens, "calendar month total tokens");
+        AssertEqual(3520L, statistics.SevenDay.TotalTokens, "seven day total tokens");
+        AssertEqual(3560L, statistics.ThirtyDay.TotalTokens, "thirty day total tokens");
+        AssertEqual(0.00774m, statistics.ThirtyDay.CostUsd, "thirty day API-equivalent cost");
         return Task.CompletedTask;
     }
 
     /// <summary>
     /// Creates a collector backed by fake OAuth credentials and a fixed official quota response.
     /// </summary>
-    private static CodexMonitorCollector CreateOfficialCollector(string codexRoot, DateTimeOffset now, long reset5H, long resetSevenDay, double primaryUsed, double secondaryUsed, out HttpClient client)
+    private static CodexMonitorCollector CreateOfficialCollector(string codexRoot, DateTimeOffset now, long reset5H, long resetSevenDay, double primaryUsed, double secondaryUsed, out HttpClient client, string? resetCreditsBody = null)
     {
         File.WriteAllText(Path.Combine(codexRoot, "auth.json"), JsonSerializer.Serialize(new
         {
@@ -385,7 +486,7 @@ internal static class Program
                 },
             },
         });
-        client = new HttpClient(new FakeHttpMessageHandler(body));
+        client = new HttpClient(new FakeHttpMessageHandler(body, resetCreditsBody));
         return new CodexMonitorCollector(() => now, client);
     }
 
@@ -435,14 +536,18 @@ internal sealed class TempDirectory : IDisposable
 
 internal sealed class FakeHttpMessageHandler : HttpMessageHandler
 {
-    private readonly string m_Body;
+    private const string k_UsageEndpoint = "https://chatgpt.com/backend-api/wham/usage";
+    private const string k_ResetCreditsEndpoint = "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits";
+    private readonly string m_UsageBody;
+    private readonly string m_ResetCreditsBody;
 
     /// <summary>
     /// Creates a handler that returns a fixed JSON response.
     /// </summary>
-    public FakeHttpMessageHandler(string body)
+    public FakeHttpMessageHandler(string usageBody, string? resetCreditsBody = null)
     {
-        m_Body = body;
+        m_UsageBody = usageBody;
+        m_ResetCreditsBody = resetCreditsBody ?? "{\"available_count\":0,\"credits\":[]}";
     }
 
     /// <summary>
@@ -450,7 +555,8 @@ internal sealed class FakeHttpMessageHandler : HttpMessageHandler
     /// </summary>
     protected override HttpResponseMessage Send(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        if (request.RequestUri?.ToString() != "https://chatgpt.com/backend-api/wham/usage")
+        string? requestUri = request.RequestUri?.ToString();
+        if (requestUri != k_UsageEndpoint && requestUri != k_ResetCreditsEndpoint)
         {
             throw new InvalidOperationException("unexpected request URI");
         }
@@ -465,9 +571,16 @@ internal sealed class FakeHttpMessageHandler : HttpMessageHandler
             throw new InvalidOperationException("missing account header");
         }
 
+        if (requestUri == k_ResetCreditsEndpoint &&
+            (!request.Headers.TryGetValues("OpenAI-Beta", out IEnumerable<string>? betaValues) || betaValues.Single() != "codex-1" ||
+             !request.Headers.TryGetValues("originator", out IEnumerable<string>? originatorValues) || originatorValues.Single() != "Codex Desktop"))
+        {
+            throw new InvalidOperationException("missing reset credit headers");
+        }
+
         return new HttpResponseMessage(HttpStatusCode.OK)
         {
-            Content = new StringContent(m_Body, Encoding.UTF8, "application/json"),
+            Content = new StringContent(requestUri == k_UsageEndpoint ? m_UsageBody : m_ResetCreditsBody, Encoding.UTF8, "application/json"),
         };
     }
 

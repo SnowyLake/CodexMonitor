@@ -19,6 +19,8 @@ public static class CodexMonitorDefaults
     public const int MaximumAcrylicOpacityPercent = 100;
     public const string AppName = "CodexMonitor";
     public const string SettingsFileName = "settings.json";
+    public const string ModelPricingFileName = "model-pricing.json";
+    public const string ResourcesDirectoryName = "Resources";
     public const string StartupRunValueName = "CodexMonitorTray";
     public const string PluginFileName = "CodexMonitor.json";
     public const string TrafficMonitorPluginFileName = "CodexMonitor.dll";
@@ -94,6 +96,9 @@ public sealed class UsageResponse
     [JsonPropertyName("limits")]
     public UsageLimits Limits { get; set; } = new();
 
+    [JsonPropertyName("limit_reset_credits")]
+    public LimitResetCredits LimitResetCredits { get; set; } = new();
+
     [JsonPropertyName("display")]
     public UsageDisplay Display { get; set; } = new();
 }
@@ -132,6 +137,21 @@ public sealed class UsageLimit
 
     [JsonPropertyName("reset_label")]
     public string ResetLabel { get; set; } = string.Empty;
+}
+
+public sealed class LimitResetCredits
+{
+    [JsonPropertyName("available")]
+    public bool Available { get; set; }
+
+    [JsonPropertyName("available_count")]
+    public int AvailableCount { get; set; }
+
+    [JsonPropertyName("nearest_expiry_local")]
+    public string NearestExpiryLocal { get; set; } = "N/A";
+
+    [JsonPropertyName("expiry_times_local")]
+    public List<string> ExpiryTimesLocal { get; set; } = [];
 }
 
 public sealed class UsageDisplay
