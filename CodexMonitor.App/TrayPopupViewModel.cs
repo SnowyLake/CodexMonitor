@@ -1,4 +1,5 @@
 using CodexMonitor.Core;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
 using System.IO;
@@ -32,6 +33,8 @@ internal enum SettingsStatus
     Unsaved,
 }
 
+internal sealed record TokenCostDisplay(string Cost, string Tokens);
+
 internal sealed class TrayPopupViewModel : INotifyPropertyChanged
 {
     private const string k_HomePageName = "Home";
@@ -42,8 +45,10 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
     private static readonly Media.Brush s_RedBrush = new Media.SolidColorBrush(Media.Color.FromRgb(224, 91, 77));
     private static readonly Media.Brush s_PlanBadgeActiveBrush = s_GreenBrush;
     private static readonly Media.Brush s_PlanBadgeInactiveBrush = new Media.SolidColorBrush(Media.Color.FromRgb(107, 122, 117));
+    private static readonly TokenCostDisplay s_UnavailableTokenCostDisplay = new("N/A", "N/A");
 
     private readonly AppSettings m_Settings;
+    private readonly ObservableCollection<string> m_LimitResetCreditExpiryTimes = [];
     private string m_CurrentPage = k_HomePageName;
     private string m_PlanDisplay = "None";
     private Media.Brush m_PlanBadgeBrush = s_PlanBadgeInactiveBrush;
@@ -51,17 +56,27 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
     private string m_UpdatedAtDisplay = "Waiting for first refresh";
     private string m_ServiceStatus = "Service: starting";
     private string m_SourceDisplay = "Source: unavailable";
+    private string m_LimitResetCreditsDisplay = "N/A";
     private string m_LiteMonitorDir = string.Empty;
     private string m_TrafficMonitorDir = string.Empty;
     private string m_PortText = CodexMonitorDefaults.Port.ToString(CultureInfo.InvariantCulture);
     private string m_RefreshIntervalText = CodexMonitorDefaults.RefreshIntervalMinutes.ToString(CultureInfo.InvariantCulture);
     private string m_ThemeMode = AppSettings.ThemeModeSystem;
+    private string m_TokenUnit = AppSettings.TokenUnitEnglish;
+    private TokenCostItem m_TokenCostItems = TokenCostItem.All;
+    private TokenCostDisplay m_TodayTokenCostDisplay = s_UnavailableTokenCostDisplay;
+    private TokenCostDisplay m_YesterdayTokenCostDisplay = s_UnavailableTokenCostDisplay;
+    private TokenCostDisplay m_WeekTokenCostDisplay = s_UnavailableTokenCostDisplay;
+    private TokenCostDisplay m_MonthTokenCostDisplay = s_UnavailableTokenCostDisplay;
+    private TokenCostDisplay m_SevenDayTokenCostDisplay = s_UnavailableTokenCostDisplay;
+    private TokenCostDisplay m_ThirtyDayTokenCostDisplay = s_UnavailableTokenCostDisplay;
     private bool m_StartWithWindows;
     private bool m_AcrylicEnabled = CodexMonitorDefaults.AcrylicEnabled;
     private int m_AcrylicOpacityPercent = CodexMonitorDefaults.AcrylicOpacityPercent;
     private bool m_ShowResetTimeInPlugins = CodexMonitorDefaults.ShowResetTimeInPlugins;
     private bool m_UseAbsoluteResetTime = CodexMonitorDefaults.UseAbsoluteResetTime;
     private bool m_IsRefreshing;
+    private bool m_IsLimitResetCreditsExpanded;
     private bool m_IsModalOpen;
     private bool m_IsDetectingLiteMonitor;
     private bool m_IsDetectingTrafficMonitor;
@@ -74,6 +89,8 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
     private string m_SnapshotPortText = string.Empty;
     private string m_SnapshotRefreshIntervalText = string.Empty;
     private string m_SnapshotThemeMode = AppSettings.ThemeModeSystem;
+    private string m_SnapshotTokenUnit = AppSettings.TokenUnitEnglish;
+    private TokenCostItem m_SnapshotTokenCostItems = TokenCostItem.All;
     private bool m_SnapshotStartWithWindows;
     private bool m_SnapshotAcrylicEnabled = CodexMonitorDefaults.AcrylicEnabled;
     private int m_SnapshotAcrylicOpacityPercent = CodexMonitorDefaults.AcrylicOpacityPercent;
@@ -101,6 +118,8 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
     public ICommand ShowSettingsCommand { get; }
 
     public ICommand RefreshCommand { get; }
+
+    public ICommand ToggleLimitResetCreditsCommand { get; }
 
     public ICommand SaveSettingsCommand { get; }
 
@@ -175,6 +194,14 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
         get => m_SourceDisplay;
         private set => SetField(ref m_SourceDisplay, value);
     }
+
+    public string LimitResetCreditsDisplay
+    {
+        get => m_LimitResetCreditsDisplay;
+        private set => SetField(ref m_LimitResetCreditsDisplay, value);
+    }
+
+    public ObservableCollection<string> LimitResetCreditExpiryTimes => m_LimitResetCreditExpiryTimes;
 
     public string LiteMonitorDir
     {
@@ -278,6 +305,126 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
         AppSettings.ThemeModeDark,
     ];
 
+    public string TokenUnit
+    {
+        get => m_TokenUnit;
+        set
+        {
+            string normalized = value == AppSettings.TokenUnitChinese ? AppSettings.TokenUnitChinese : AppSettings.TokenUnitEnglish;
+            if (SetField(ref m_TokenUnit, normalized))
+            {
+                EvaluateDirtyState();
+            }
+        }
+    }
+
+    public string[] TokenUnitOptions { get; } =
+    [
+        AppSettings.TokenUnitEnglish,
+        AppSettings.TokenUnitChinese,
+    ];
+
+    public TokenCostItem TokenCostItems
+    {
+        get => m_TokenCostItems;
+        set
+        {
+            if (SetField(ref m_TokenCostItems, value & TokenCostItem.All))
+            {
+                OnPropertyChanged(nameof(TokenCostItemsDisplay));
+                OnPropertyChanged(nameof(IsTokenCostVisible));
+                OnPropertyChanged(nameof(ShowTodayTokenCost));
+                OnPropertyChanged(nameof(ShowYesterdayTokenCost));
+                OnPropertyChanged(nameof(ShowWeekTokenCost));
+                OnPropertyChanged(nameof(ShowMonthTokenCost));
+                OnPropertyChanged(nameof(ShowSevenDayTokenCost));
+                OnPropertyChanged(nameof(ShowThirtyDayTokenCost));
+                EvaluateDirtyState();
+            }
+        }
+    }
+
+    public string TokenCostItemsDisplay => m_TokenCostItems switch
+    {
+        TokenCostItem.None => "None",
+        TokenCostItem.All => "All",
+        _ => "Custom",
+    };
+
+    public bool IsTokenCostVisible => m_TokenCostItems != TokenCostItem.None;
+
+    public bool ShowTodayTokenCost
+    {
+        get => (m_TokenCostItems & TokenCostItem.Today) != 0;
+        set => SetTokenCostItem(TokenCostItem.Today, value);
+    }
+
+    public bool ShowYesterdayTokenCost
+    {
+        get => (m_TokenCostItems & TokenCostItem.Yesterday) != 0;
+        set => SetTokenCostItem(TokenCostItem.Yesterday, value);
+    }
+
+    public bool ShowWeekTokenCost
+    {
+        get => (m_TokenCostItems & TokenCostItem.Week) != 0;
+        set => SetTokenCostItem(TokenCostItem.Week, value);
+    }
+
+    public bool ShowMonthTokenCost
+    {
+        get => (m_TokenCostItems & TokenCostItem.Month) != 0;
+        set => SetTokenCostItem(TokenCostItem.Month, value);
+    }
+
+    public bool ShowSevenDayTokenCost
+    {
+        get => (m_TokenCostItems & TokenCostItem.SevenDay) != 0;
+        set => SetTokenCostItem(TokenCostItem.SevenDay, value);
+    }
+
+    public bool ShowThirtyDayTokenCost
+    {
+        get => (m_TokenCostItems & TokenCostItem.ThirtyDay) != 0;
+        set => SetTokenCostItem(TokenCostItem.ThirtyDay, value);
+    }
+
+    public TokenCostDisplay TodayTokenCostDisplay
+    {
+        get => m_TodayTokenCostDisplay;
+        private set => SetField(ref m_TodayTokenCostDisplay, value);
+    }
+
+    public TokenCostDisplay YesterdayTokenCostDisplay
+    {
+        get => m_YesterdayTokenCostDisplay;
+        private set => SetField(ref m_YesterdayTokenCostDisplay, value);
+    }
+
+    public TokenCostDisplay WeekTokenCostDisplay
+    {
+        get => m_WeekTokenCostDisplay;
+        private set => SetField(ref m_WeekTokenCostDisplay, value);
+    }
+
+    public TokenCostDisplay MonthTokenCostDisplay
+    {
+        get => m_MonthTokenCostDisplay;
+        private set => SetField(ref m_MonthTokenCostDisplay, value);
+    }
+
+    public TokenCostDisplay SevenDayTokenCostDisplay
+    {
+        get => m_SevenDayTokenCostDisplay;
+        private set => SetField(ref m_SevenDayTokenCostDisplay, value);
+    }
+
+    public TokenCostDisplay ThirtyDayTokenCostDisplay
+    {
+        get => m_ThirtyDayTokenCostDisplay;
+        private set => SetField(ref m_ThirtyDayTokenCostDisplay, value);
+    }
+
     public bool StartWithWindows
     {
         get => m_StartWithWindows;
@@ -360,6 +507,12 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
         set => SetField(ref m_IsRefreshing, value);
     }
 
+    public bool IsLimitResetCreditsExpanded
+    {
+        get => m_IsLimitResetCreditsExpanded;
+        private set => SetField(ref m_IsLimitResetCreditsExpanded, value);
+    }
+
     public bool IsModalOpen
     {
         get => m_IsModalOpen;
@@ -376,6 +529,7 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
         ShowHomeCommand = new RelayCommand(_ => ShowHome());
         ShowSettingsCommand = new RelayCommand(_ => ShowSettings());
         RefreshCommand = new RelayCommand(_ => RefreshRequested?.Invoke(this, EventArgs.Empty));
+        ToggleLimitResetCreditsCommand = new RelayCommand(_ => ToggleLimitResetCredits());
         SaveSettingsCommand = new RelayCommand(_ => SaveSettingsRequested?.Invoke(this, EventArgs.Empty));
         InstallLiteMonitorPluginCommand = new RelayCommand(_ => InstallLiteMonitorPluginRequested?.Invoke(this, EventArgs.Empty));
         InstallTrafficMonitorPluginCommand = new RelayCommand(_ => InstallTrafficMonitorPluginRequested?.Invoke(this, EventArgs.Empty));
@@ -399,6 +553,8 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
             PortText = settings.Port.ToString(CultureInfo.InvariantCulture);
             RefreshIntervalText = settings.RefreshIntervalMinutes.ToString(CultureInfo.InvariantCulture);
             ThemeMode = settings.ThemeMode;
+            TokenUnit = settings.TokenUnit;
+            TokenCostItems = settings.TokenCostItems;
             StartWithWindows = settings.StartWithWindows;
             AcrylicEnabled = settings.AcrylicEnabled;
             AcrylicOpacityPercent = settings.AcrylicOpacityPercent;
@@ -423,6 +579,8 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
         m_SnapshotPortText = m_PortText;
         m_SnapshotRefreshIntervalText = m_RefreshIntervalText;
         m_SnapshotThemeMode = m_ThemeMode;
+        m_SnapshotTokenUnit = m_TokenUnit;
+        m_SnapshotTokenCostItems = m_TokenCostItems;
         m_SnapshotStartWithWindows = m_StartWithWindows;
         m_SnapshotAcrylicEnabled = m_AcrylicEnabled;
         m_SnapshotAcrylicOpacityPercent = m_AcrylicOpacityPercent;
@@ -448,6 +606,8 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
             m_PortText == m_SnapshotPortText &&
             m_RefreshIntervalText == m_SnapshotRefreshIntervalText &&
             m_ThemeMode == m_SnapshotThemeMode &&
+            m_TokenUnit == m_SnapshotTokenUnit &&
+            m_TokenCostItems == m_SnapshotTokenCostItems &&
             m_StartWithWindows == m_SnapshotStartWithWindows &&
             m_AcrylicEnabled == m_SnapshotAcrylicEnabled &&
             m_AcrylicOpacityPercent == m_SnapshotAcrylicOpacityPercent &&
@@ -487,6 +647,8 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
         m_Settings.RefreshIntervalMinutes = refreshInterval;
         m_Settings.StartWithWindows = StartWithWindows;
         m_Settings.ThemeMode = ThemeMode;
+        m_Settings.TokenUnit = TokenUnit;
+        m_Settings.TokenCostItems = TokenCostItems;
         m_Settings.AcrylicEnabled = AcrylicEnabled;
         m_Settings.AcrylicOpacityPercent = AcrylicOpacityPercent;
         m_Settings.ShowResetTimeInPlugins = ShowResetTimeInPlugins;
@@ -494,6 +656,16 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
         CaptureSnapshot(SettingsStatus.Saved);
         message = "Changes saved";
         return true;
+    }
+
+    /// <summary>
+    /// Adds or removes one token cost item from the current selection.
+    /// </summary>
+    private void SetTokenCostItem(TokenCostItem item, bool isShown)
+    {
+        TokenCostItems = isShown
+            ? m_TokenCostItems | item
+            : m_TokenCostItems & ~item;
     }
 
     /// <summary>
@@ -529,6 +701,7 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
             UpdatedAtDisplay = FormatUpdatedAt(null);
             FiveHourQuota.UpdateUnavailable();
             SevenDayQuota.UpdateUnavailable();
+            UpdateLimitResetCredits(null);
             return;
         }
 
@@ -537,9 +710,10 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
             PlanDisplay = "None";
             PlanBadgeBrush = s_PlanBadgeInactiveBrush;
             StatusDotBrush = s_RedBrush;
-            UpdatedAtDisplay = $"Codex usage unavailable{FormatResponseError(response)}";
+            UpdatedAtDisplay = $"Error{FormatResponseError(response)}";
             FiveHourQuota.UpdateUnavailable();
             SevenDayQuota.UpdateUnavailable();
+            UpdateLimitResetCredits(null);
             return;
         }
 
@@ -549,6 +723,87 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
         UpdatedAtDisplay = FormatUpdatedAt(response.UpdatedAt);
         FiveHourQuota.Update(response.Limits.FiveHour);
         SevenDayQuota.Update(response.Limits.SevenDay);
+        UpdateLimitResetCredits(response.LimitResetCredits);
+    }
+
+    /// <summary>
+    /// Updates the reset credit button and expiry list.
+    /// </summary>
+    private void UpdateLimitResetCredits(LimitResetCredits? resetCredits)
+    {
+        m_LimitResetCreditExpiryTimes.Clear();
+        if (resetCredits?.Available == true)
+        {
+            LimitResetCreditsDisplay = $"{resetCredits.AvailableCount} Available";
+            foreach (string expiryTime in resetCredits.ExpiryTimesLocal)
+            {
+                m_LimitResetCreditExpiryTimes.Add(expiryTime);
+            }
+        }
+        else
+        {
+            LimitResetCreditsDisplay = "N/A";
+        }
+
+        if (m_LimitResetCreditExpiryTimes.Count == 0)
+        {
+            IsLimitResetCreditsExpanded = false;
+        }
+    }
+
+    /// <summary>
+    /// Toggles the reset credit expiry list.
+    /// </summary>
+    private void ToggleLimitResetCredits()
+    {
+        if (m_LimitResetCreditExpiryTimes.Count > 0)
+        {
+            IsLimitResetCreditsExpanded = !IsLimitResetCreditsExpanded;
+        }
+    }
+
+    /// <summary>
+    /// Updates token and cost displays or marks them unavailable after a failed read.
+    /// </summary>
+    public void UpdateTokenCost(TokenCostStatistics? statistics)
+    {
+        if (statistics == null)
+        {
+            TodayTokenCostDisplay = s_UnavailableTokenCostDisplay;
+            YesterdayTokenCostDisplay = s_UnavailableTokenCostDisplay;
+            WeekTokenCostDisplay = s_UnavailableTokenCostDisplay;
+            MonthTokenCostDisplay = s_UnavailableTokenCostDisplay;
+            SevenDayTokenCostDisplay = s_UnavailableTokenCostDisplay;
+            ThirtyDayTokenCostDisplay = s_UnavailableTokenCostDisplay;
+            return;
+        }
+
+        TodayTokenCostDisplay = FormatTokenCost(statistics.Today);
+        YesterdayTokenCostDisplay = FormatTokenCost(statistics.Yesterday);
+        WeekTokenCostDisplay = FormatTokenCost(statistics.Week);
+        MonthTokenCostDisplay = FormatTokenCost(statistics.Month);
+        SevenDayTokenCostDisplay = FormatTokenCost(statistics.SevenDay);
+        ThirtyDayTokenCostDisplay = FormatTokenCost(statistics.ThirtyDay);
+    }
+
+    /// <summary>
+    /// Formats one token cost period for display.
+    /// </summary>
+    private TokenCostDisplay FormatTokenCost(TokenCostSummary summary)
+    {
+        string cost = summary.CostUsd?.ToString("$0.00", CultureInfo.InvariantCulture) ?? "N/A";
+        return new TokenCostDisplay(cost, FormatTokens(summary.TotalTokens, m_Settings.TokenUnit));
+    }
+
+    /// <summary>
+    /// Formats token counts using the selected compact unit family.
+    /// </summary>
+    private static string FormatTokens(long tokens, string tokenUnit)
+    {
+        (decimal divisor, string suffix) = tokenUnit == AppSettings.TokenUnitChinese
+            ? tokens >= 100_000_000 ? (100_000_000m, "亿") : (10_000m, "万")
+            : tokens >= 1_000_000_000 ? (1_000_000_000m, "B") : (1_000_000m, "M");
+        return $"{tokens / divisor:0.00}{suffix}";
     }
 
     /// <summary>

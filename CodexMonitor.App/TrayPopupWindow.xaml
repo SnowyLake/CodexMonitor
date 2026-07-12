@@ -147,6 +147,23 @@
                 </Setter>
             </Style>
 
+            <!-- ============ Home ============ -->
+            <Thickness x:Key="HomeSectionHeaderMargin">0,0,0,12</Thickness>
+            <Thickness x:Key="HomeSectionHeaderSpacedMargin">0,18,0,12</Thickness>
+
+            <Style x:Key="HomeSectionHeaderStyle" TargetType="{x:Type TextBlock}">
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Margin" Value="{StaticResource HomeSectionHeaderMargin}" />
+            </Style>
+
+            <Style x:Key="HomeSectionHeaderSpacedStyle"
+                   BasedOn="{StaticResource HomeSectionHeaderStyle}"
+                   TargetType="{x:Type TextBlock}">
+                <Setter Property="Margin" Value="{StaticResource HomeSectionHeaderSpacedMargin}" />
+            </Style>
+
             <!-- ============ Settings: native Fluent controls ============ -->
             <!-- Only layout tweaks; templates stay Fluent so inputs work. -->
             <Thickness x:Key="SettingsSectionHeaderMargin">0,0,0,10</Thickness>
@@ -379,15 +396,14 @@
                 </StackPanel>
 
                 <!-- Quota list -->
-                <StackPanel Grid.Row="1"
-                            VerticalAlignment="Top"
-                            Margin="0,24,0,0"
-                            Grid.IsSharedSizeScope="True">
+                <ScrollViewer Grid.Row="1"
+                              Margin="0,24,-8,0"
+                              Padding="0,0,8,0"
+                              VerticalScrollBarVisibility="Hidden">
+                    <StackPanel VerticalAlignment="Top"
+                                Grid.IsSharedSizeScope="True">
                     <TextBlock Text="Usage"
-                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                               FontSize="12"
-                               FontWeight="SemiBold"
-                               Margin="0,0,0,14" />
+                               Style="{StaticResource HomeSectionHeaderStyle}" />
 
                     <!-- 5 hour -->
                     <StackPanel Margin="0,0,0,20">
@@ -468,7 +484,219 @@
                                        FontSize="12" />
                         </StackPanel>
                     </StackPanel>
+
+                    <Grid Margin="0,20,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="Limit reset credits"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                   FontSize="13.5"
+                                   FontWeight="Normal" />
+                        <Button Grid.Column="1"
+                                Command="{Binding ToggleLimitResetCreditsCommand}"
+                                ToolTip="Show reset credit expiry times"
+                                HorizontalAlignment="Right"
+                                Width="Auto"
+                                Height="32"
+                                Style="{StaticResource IconButtonStyle}">
+                            <TextBlock Text="{Binding LimitResetCreditsDisplay}"
+                                       Margin="10,0"
+                                       FontFamily="Segoe UI"
+                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                       FontSize="13.5"
+                                       FontWeight="Normal" />
+                        </Button>
+                        <ItemsControl Grid.Row="1"
+                                      Grid.Column="1"
+                                      Margin="0,8,0,0"
+                                      ItemsSource="{Binding LimitResetCreditExpiryTimes}"
+                                      Visibility="{Binding IsLimitResetCreditsExpanded, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}"
+                                               Margin="0,0,8,4"
+                                               HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               FontSize="12" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Border Grid.Column="1"
+                                Grid.RowSpan="2"
+                                Margin="0,16,0,4"
+                                HorizontalAlignment="Right"
+                                BorderBrush="{DynamicResource TextFillColorSecondaryBrush}"
+                                BorderThickness="0,0,1,0"
+                                IsHitTestVisible="False"
+                                Visibility="{Binding IsLimitResetCreditsExpanded, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    </Grid>
+
+                    <TextBlock Text="Token Cost"
+                               Style="{StaticResource HomeSectionHeaderSpacedStyle}"
+                               Visibility="{Binding IsTokenCostVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <Grid Visibility="{Binding IsTokenCostVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Text="Today"
+                                   Margin="0,0,0,12"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                   FontSize="13.5"
+                                   FontWeight="Medium"
+                                   Visibility="{Binding ShowTodayTokenCost, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        <TextBlock Grid.Column="1"
+                                   Margin="0,0,0,12"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   FontSize="13.5"
+                                   Visibility="{Binding ShowTodayTokenCost, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock.Text>
+                                <MultiBinding StringFormat="{}{0} · {1} tokens">
+                                    <Binding Path="TodayTokenCostDisplay.Cost" />
+                                    <Binding Path="TodayTokenCostDisplay.Tokens" />
+                                </MultiBinding>
+                            </TextBlock.Text>
+                        </TextBlock>
+
+                        <TextBlock Grid.Row="1"
+                                   Text="Yesterday"
+                                   Margin="0,0,0,12"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                   FontSize="13.5"
+                                   FontWeight="Medium"
+                                   Visibility="{Binding ShowYesterdayTokenCost, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        <TextBlock Grid.Row="1"
+                                   Grid.Column="1"
+                                   Margin="0,0,0,12"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   FontSize="13.5"
+                                   Visibility="{Binding ShowYesterdayTokenCost, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock.Text>
+                                <MultiBinding StringFormat="{}{0} · {1} tokens">
+                                    <Binding Path="YesterdayTokenCostDisplay.Cost" />
+                                    <Binding Path="YesterdayTokenCostDisplay.Tokens" />
+                                </MultiBinding>
+                            </TextBlock.Text>
+                        </TextBlock>
+
+                        <TextBlock Grid.Row="2"
+                                   Text="Week"
+                                   Margin="0,0,0,12"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                   FontSize="13.5"
+                                   FontWeight="Medium"
+                                   Visibility="{Binding ShowWeekTokenCost, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        <TextBlock Grid.Row="2"
+                                   Grid.Column="1"
+                                   Margin="0,0,0,12"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   FontSize="13.5"
+                                   Visibility="{Binding ShowWeekTokenCost, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock.Text>
+                                <MultiBinding StringFormat="{}{0} · {1} tokens">
+                                    <Binding Path="WeekTokenCostDisplay.Cost" />
+                                    <Binding Path="WeekTokenCostDisplay.Tokens" />
+                                </MultiBinding>
+                            </TextBlock.Text>
+                        </TextBlock>
+
+                        <TextBlock Grid.Row="3"
+                                   Text="Month"
+                                   Margin="0,0,0,12"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                   FontSize="13.5"
+                                   FontWeight="Medium"
+                                   Visibility="{Binding ShowMonthTokenCost, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        <TextBlock Grid.Row="3"
+                                   Grid.Column="1"
+                                   Margin="0,0,0,12"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   FontSize="13.5"
+                                   Visibility="{Binding ShowMonthTokenCost, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock.Text>
+                                <MultiBinding StringFormat="{}{0} · {1} tokens">
+                                    <Binding Path="MonthTokenCostDisplay.Cost" />
+                                    <Binding Path="MonthTokenCostDisplay.Tokens" />
+                                </MultiBinding>
+                            </TextBlock.Text>
+                        </TextBlock>
+
+                        <TextBlock Grid.Row="4"
+                                   Text="Last 7 Days"
+                                   Margin="0,0,0,12"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                   FontSize="13.5"
+                                   FontWeight="Medium"
+                                   Visibility="{Binding ShowSevenDayTokenCost, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        <TextBlock Grid.Row="4"
+                                   Grid.Column="1"
+                                   Margin="0,0,0,12"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   FontSize="13.5"
+                                   Visibility="{Binding ShowSevenDayTokenCost, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock.Text>
+                                <MultiBinding StringFormat="{}{0} · {1} tokens">
+                                    <Binding Path="SevenDayTokenCostDisplay.Cost" />
+                                    <Binding Path="SevenDayTokenCostDisplay.Tokens" />
+                                </MultiBinding>
+                            </TextBlock.Text>
+                        </TextBlock>
+
+                        <TextBlock Grid.Row="5"
+                                   Text="Last 30 Days"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                   FontSize="13.5"
+                                   FontWeight="Medium"
+                                   Visibility="{Binding ShowThirtyDayTokenCost, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        <TextBlock Grid.Row="5"
+                                   Grid.Column="1"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   FontSize="13.5"
+                                   Visibility="{Binding ShowThirtyDayTokenCost, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock.Text>
+                                <MultiBinding StringFormat="{}{0} · {1} tokens">
+                                    <Binding Path="ThirtyDayTokenCostDisplay.Cost" />
+                                    <Binding Path="ThirtyDayTokenCostDisplay.Tokens" />
+                                </MultiBinding>
+                            </TextBlock.Text>
+                        </TextBlock>
+                    </Grid>
                 </StackPanel>
+                </ScrollViewer>
 
             </Grid>
 
@@ -550,6 +778,75 @@
                                       ToolTipService.ShowDuration="{StaticResource ToolTipShowDuration}"
                                       IsChecked="{Binding StartWithWindows}"
                                       ToolTip="Start with Windows" />
+                        </Grid>
+
+                        <Grid Style="{StaticResource SettingsRowGridStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="140" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Token unit"
+                                       Style="{StaticResource SettingsRowTitleStyle}" />
+                            <ComboBox Grid.Column="1"
+                                      VerticalAlignment="Center"
+                                      ItemsSource="{Binding TokenUnitOptions}"
+                                      SelectedItem="{Binding TokenUnit, UpdateSourceTrigger=PropertyChanged}"
+                                      Style="{StaticResource SettingsComboBoxStyle}" />
+                        </Grid>
+
+                        <Grid Style="{StaticResource SettingsRowGridStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="140" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Token Cost items"
+                                       Style="{StaticResource SettingsRowTitleStyle}" />
+                            <Button Grid.Column="1"
+                                    Height="34"
+                                    HorizontalAlignment="Stretch"
+                                    Padding="11,0"
+                                    HorizontalContentAlignment="Stretch"
+                                    Click="OpenTokenCostItemsMenu">
+                                <Grid>
+                                    <TextBlock Text="{Binding TokenCostItemsDisplay}"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Text="&#xE70D;"
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Center"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               FontSize="12" />
+                                </Grid>
+                                <Button.ContextMenu>
+                                    <ContextMenu MinWidth="140"
+                                                 Placement="Bottom"
+                                                 DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                                        <MenuItem Header="Today"
+                                                  IsCheckable="True"
+                                                  IsChecked="{Binding ShowTodayTokenCost, Mode=TwoWay}"
+                                                  StaysOpenOnClick="True" />
+                                        <MenuItem Header="Yesterday"
+                                                  IsCheckable="True"
+                                                  IsChecked="{Binding ShowYesterdayTokenCost, Mode=TwoWay}"
+                                                  StaysOpenOnClick="True" />
+                                        <MenuItem Header="Week"
+                                                  IsCheckable="True"
+                                                  IsChecked="{Binding ShowWeekTokenCost, Mode=TwoWay}"
+                                                  StaysOpenOnClick="True" />
+                                        <MenuItem Header="Month"
+                                                  IsCheckable="True"
+                                                  IsChecked="{Binding ShowMonthTokenCost, Mode=TwoWay}"
+                                                  StaysOpenOnClick="True" />
+                                        <MenuItem Header="Last 7 Days"
+                                                  IsCheckable="True"
+                                                  IsChecked="{Binding ShowSevenDayTokenCost, Mode=TwoWay}"
+                                                  StaysOpenOnClick="True" />
+                                        <MenuItem Header="Last 30 Days"
+                                                  IsCheckable="True"
+                                                  IsChecked="{Binding ShowThirtyDayTokenCost, Mode=TwoWay}"
+                                                  StaysOpenOnClick="True" />
+                                    </ContextMenu>
+                                </Button.ContextMenu>
+                            </Button>
                         </Grid>
 
                         <Grid Margin="{StaticResource SettingsSectionEndMargin}"

@@ -4,6 +4,7 @@
     <ProjectReference Include="..\CodexMonitor.Core\CodexMonitor.Core.csproj" />
     <Content Include="..\Resources\icon.ico" Link="Resources\icon.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
     <Content Include="..\Resources\icon.png" Link="Resources\icon.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+    <Content Include="..\Resources\model-pricing.json" Link="Resources\model-pricing.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
     <Content Include="..\Plugins\LiteMonitor\CodexMonitor.json" Link="Plugins\LiteMonitor\CodexMonitor.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
     <Content Include="..\Plugins\TrafficMonitor\CodexMonitor.ini" Link="Plugins\TrafficMonitor\CodexMonitor.ini" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
     <Content Include="..\Plugins\TrafficMonitor\Builds\x64\Release\CodexMonitor.dll" Link="Plugins\TrafficMonitor\CodexMonitor.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" Condition="Exists('..\Plugins\TrafficMonitor\Builds\x64\Release\CodexMonitor.dll')" />

@@ -1,6 +1,7 @@
 using CodexMonitor.Core;
 using System.IO;
 using System.Net.Sockets;
+using System.Text.Json;
 using System.Windows.Threading;
 using Forms = System.Windows.Forms;
 using WpfApplication = System.Windows.Application;
@@ -17,6 +18,7 @@ internal sealed class TrayController : IDisposable
     private readonly Dispatcher m_Dispatcher;
     private readonly SettingsStore m_SettingsStore;
     private readonly CodexMonitorCollector m_Collector;
+    private readonly TokenCostCollector m_TokenCostCollector;
     private readonly UsageCache m_UsageCache = new();
     private readonly Forms.NotifyIcon m_NotifyIcon;
     private readonly System.Drawing.Icon m_AppIcon;
@@ -41,6 +43,7 @@ internal sealed class TrayController : IDisposable
         m_Dispatcher = dispatcher;
         m_SettingsStore = new SettingsStore();
         m_Collector = new CodexMonitorCollector();
+        m_TokenCostCollector = new TokenCostCollector();
         m_AppIcon = LoadApplicationIcon();
         bool settingsExists = m_SettingsStore.Exists();
         m_Settings = m_SettingsStore.Load();
@@ -403,6 +406,16 @@ internal sealed class TrayController : IDisposable
             UsageResponse response = await Task.Run(() => m_Collector.Collect(showResetTimeInPlugins, useAbsoluteResetTime)).ConfigureAwait(true);
             m_UsageCache.Update(response);
             RefreshPopupStatus();
+            TokenCostStatistics? tokenCost;
+            try
+            {
+                tokenCost = await Task.Run(() => m_TokenCostCollector.Collect()).ConfigureAwait(true);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
+            {
+                tokenCost = null;
+            }
+            m_PopupViewModel?.UpdateTokenCost(tokenCost);
         }
         finally
         {

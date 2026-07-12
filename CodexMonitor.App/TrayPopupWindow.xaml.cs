@@ -134,6 +134,19 @@ internal sealed partial class TrayPopupWindow : Window
     }
 
     /// <summary>
+    /// Opens the token cost item selection menu below its button.
+    /// </summary>
+    private void OpenTokenCostItemsMenu(object sender, RoutedEventArgs args)
+    {
+        if (sender is Controls.Button { ContextMenu: { } contextMenu } button)
+        {
+            contextMenu.PlacementTarget = button;
+            contextMenu.IsOpen = true;
+            args.Handled = true;
+        }
+    }
+
+    /// <summary>
     /// Positions the popup near the current screen work area.
     /// </summary>
     private void PositionNearTray()
