@@ -511,7 +511,7 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Limit reset credits"
+                            <TextBlock Text="Limit Reset Credits"
                                        VerticalAlignment="Center"
                                        Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                        FontSize="13.5"
