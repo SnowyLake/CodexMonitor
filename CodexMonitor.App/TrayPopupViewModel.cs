@@ -1,5 +1,4 @@
 using CodexMonitor.Core;
-using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
 using System.IO;
@@ -48,7 +47,6 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
     private static readonly TokenCostDisplay s_UnavailableTokenCostDisplay = new("N/A", "N/A");
 
     private readonly AppSettings m_Settings;
-    private readonly ObservableCollection<string> m_LimitResetCreditExpiryTimes = [];
     private string m_CurrentPage = k_HomePageName;
     private string m_PlanDisplay = "None";
     private Media.Brush m_PlanBadgeBrush = s_PlanBadgeInactiveBrush;
@@ -57,6 +55,7 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
     private string m_ServiceStatus = "Service: starting";
     private string m_SourceDisplay = "Source: unavailable";
     private string m_LimitResetCreditsDisplay = "N/A";
+    private string m_LimitResetCreditsResetTime = "N/A";
     private string m_LiteMonitorDir = string.Empty;
     private string m_TrafficMonitorDir = string.Empty;
     private string m_PortText = CodexMonitorDefaults.Port.ToString(CultureInfo.InvariantCulture);
@@ -76,7 +75,6 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
     private bool m_ShowResetTimeInPlugins = CodexMonitorDefaults.ShowResetTimeInPlugins;
     private bool m_UseAbsoluteResetTime = CodexMonitorDefaults.UseAbsoluteResetTime;
     private bool m_IsRefreshing;
-    private bool m_IsLimitResetCreditsExpanded;
     private bool m_IsModalOpen;
     private bool m_IsDetectingLiteMonitor;
     private bool m_IsDetectingTrafficMonitor;
@@ -118,8 +116,6 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
     public ICommand ShowSettingsCommand { get; }
 
     public ICommand RefreshCommand { get; }
-
-    public ICommand ToggleLimitResetCreditsCommand { get; }
 
     public ICommand SaveSettingsCommand { get; }
 
@@ -201,7 +197,11 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
         private set => SetField(ref m_LimitResetCreditsDisplay, value);
     }
 
-    public ObservableCollection<string> LimitResetCreditExpiryTimes => m_LimitResetCreditExpiryTimes;
+    public string LimitResetCreditsResetTime
+    {
+        get => m_LimitResetCreditsResetTime;
+        private set => SetField(ref m_LimitResetCreditsResetTime, value);
+    }
 
     public string LiteMonitorDir
     {
@@ -507,12 +507,6 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
         set => SetField(ref m_IsRefreshing, value);
     }
 
-    public bool IsLimitResetCreditsExpanded
-    {
-        get => m_IsLimitResetCreditsExpanded;
-        private set => SetField(ref m_IsLimitResetCreditsExpanded, value);
-    }
-
     public bool IsModalOpen
     {
         get => m_IsModalOpen;
@@ -529,7 +523,6 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
         ShowHomeCommand = new RelayCommand(_ => ShowHome());
         ShowSettingsCommand = new RelayCommand(_ => ShowSettings());
         RefreshCommand = new RelayCommand(_ => RefreshRequested?.Invoke(this, EventArgs.Empty));
-        ToggleLimitResetCreditsCommand = new RelayCommand(_ => ToggleLimitResetCredits());
         SaveSettingsCommand = new RelayCommand(_ => SaveSettingsRequested?.Invoke(this, EventArgs.Empty));
         InstallLiteMonitorPluginCommand = new RelayCommand(_ => InstallLiteMonitorPluginRequested?.Invoke(this, EventArgs.Empty));
         InstallTrafficMonitorPluginCommand = new RelayCommand(_ => InstallTrafficMonitorPluginRequested?.Invoke(this, EventArgs.Empty));
@@ -727,38 +720,19 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Updates the reset credit button and expiry list.
+    /// Updates the reset credit display values.
     /// </summary>
     private void UpdateLimitResetCredits(LimitResetCredits? resetCredits)
     {
-        m_LimitResetCreditExpiryTimes.Clear();
         if (resetCredits?.Available == true)
         {
             LimitResetCreditsDisplay = $"{resetCredits.AvailableCount} Available";
-            foreach (string expiryTime in resetCredits.ExpiryTimesLocal)
-            {
-                m_LimitResetCreditExpiryTimes.Add(expiryTime);
-            }
+            LimitResetCreditsResetTime = resetCredits.NearestExpiryLocal;
         }
         else
         {
             LimitResetCreditsDisplay = "N/A";
-        }
-
-        if (m_LimitResetCreditExpiryTimes.Count == 0)
-        {
-            IsLimitResetCreditsExpanded = false;
-        }
-    }
-
-    /// <summary>
-    /// Toggles the reset credit expiry list.
-    /// </summary>
-    private void ToggleLimitResetCredits()
-    {
-        if (m_LimitResetCreditExpiryTimes.Count > 0)
-        {
-            IsLimitResetCreditsExpanded = !IsLimitResetCreditsExpanded;
+            LimitResetCreditsResetTime = "N/A";
         }
     }
 

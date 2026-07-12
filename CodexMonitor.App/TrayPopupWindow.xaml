@@ -437,7 +437,17 @@
                                        Margin="0,0,4,0"
                                        VerticalAlignment="Center"
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                       FontSize="10" />
+                                       FontSize="10">
+                                <TextBlock.Style>
+                                    <Style TargetType="{x:Type TextBlock}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding FiveHourQuota.ResetText}" Value="unknown">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                             <TextBlock Text="{Binding FiveHourQuota.ResetText}"
                                        VerticalAlignment="Center"
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
@@ -477,7 +487,17 @@
                                        Margin="0,0,4,0"
                                        VerticalAlignment="Center"
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                       FontSize="10" />
+                                       FontSize="10">
+                                <TextBlock.Style>
+                                    <Style TargetType="{x:Type TextBlock}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SevenDayQuota.ResetText}" Value="unknown">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                             <TextBlock Text="{Binding SevenDayQuota.ResetText}"
                                        VerticalAlignment="Center"
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
@@ -485,58 +505,34 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <Grid Margin="0,20,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <TextBlock Text="Limit reset credits"
-                                   VerticalAlignment="Center"
-                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                                   FontSize="13.5"
-                                   FontWeight="Normal" />
-                        <Button Grid.Column="1"
-                                Command="{Binding ToggleLimitResetCreditsCommand}"
-                                ToolTip="Show reset credit expiry times"
-                                HorizontalAlignment="Right"
-                                Width="Auto"
-                                Height="32"
-                                Style="{StaticResource IconButtonStyle}">
-                            <TextBlock Text="{Binding LimitResetCreditsDisplay}"
-                                       Margin="10,0"
-                                       FontFamily="Segoe UI"
+                    <StackPanel Margin="0,20,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Limit reset credits"
+                                       VerticalAlignment="Center"
                                        Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                        FontSize="13.5"
                                        FontWeight="Normal" />
-                        </Button>
-                        <ItemsControl Grid.Row="1"
-                                      Grid.Column="1"
-                                      Margin="0,8,0,0"
-                                      ItemsSource="{Binding LimitResetCreditExpiryTimes}"
-                                      Visibility="{Binding IsLimitResetCreditsExpanded, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding}"
-                                               Margin="0,0,8,4"
-                                               HorizontalAlignment="Right"
-                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                               FontSize="12" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                        <Border Grid.Column="1"
-                                Grid.RowSpan="2"
-                                Margin="0,16,0,4"
-                                HorizontalAlignment="Right"
-                                BorderBrush="{DynamicResource TextFillColorSecondaryBrush}"
-                                BorderThickness="0,0,1,0"
-                                IsHitTestVisible="False"
-                                Visibility="{Binding IsLimitResetCreditsExpanded, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                    </Grid>
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding LimitResetCreditsDisplay}"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                       FontSize="13.5"
+                                       FontWeight="Normal" />
+                        </Grid>
+                        <StackPanel Orientation="Horizontal"
+                                    HorizontalAlignment="Right"
+                                    Margin="0,5,0,0">
+                            <TextBlock Text="{Binding LimitResetCreditsResetTime}"
+                                       VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                       FontSize="12" />
+                        </StackPanel>
+                    </StackPanel>
 
                     <TextBlock Text="Token Cost"
                                Style="{StaticResource HomeSectionHeaderSpacedStyle}"
@@ -780,18 +776,22 @@
                                       ToolTip="Start with Windows" />
                         </Grid>
 
-                        <Grid Style="{StaticResource SettingsRowGridStyle}">
+                        <Grid ToolTip="Show reset as absolute time (5-Hour as HH:mm, 7-Day as MM-dd) instead of a countdown"
+                              Style="{StaticResource SettingsRowGridStyle}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="140" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Token unit"
+                            <TextBlock Text="Use absolute time"
+                                       ToolTip="Show reset as absolute time (5-Hour as HH:mm, 7-Day as MM-dd) instead of a countdown"
                                        Style="{StaticResource SettingsRowTitleStyle}" />
-                            <ComboBox Grid.Column="1"
+                            <CheckBox Grid.Column="1"
+                                      HorizontalAlignment="Right"
                                       VerticalAlignment="Center"
-                                      ItemsSource="{Binding TokenUnitOptions}"
-                                      SelectedItem="{Binding TokenUnit, UpdateSourceTrigger=PropertyChanged}"
-                                      Style="{StaticResource SettingsComboBoxStyle}" />
+                                      ToolTipService.InitialShowDelay="{StaticResource ToolTipInitialShowDelay}"
+                                      ToolTipService.ShowDuration="{StaticResource ToolTipShowDuration}"
+                                      IsChecked="{Binding UseAbsoluteResetTime}"
+                                      ToolTip="Show reset as absolute time (5-Hour as HH:mm, 7-Day as MM-dd) instead of a countdown" />
                         </Grid>
 
                         <Grid Style="{StaticResource SettingsRowGridStyle}">
@@ -850,22 +850,18 @@
                         </Grid>
 
                         <Grid Margin="{StaticResource SettingsSectionEndMargin}"
-                              ToolTip="Show reset as absolute time (5-Hour as HH:mm, 7-Day as MM-dd) instead of a countdown"
                               Style="{StaticResource SettingsRowGridStyle}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="140" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Use absolute time"
-                                       ToolTip="Show reset as absolute time (5-Hour as HH:mm, 7-Day as MM-dd) instead of a countdown"
+                            <TextBlock Text="Token unit"
                                        Style="{StaticResource SettingsRowTitleStyle}" />
-                            <CheckBox Grid.Column="1"
-                                      HorizontalAlignment="Right"
+                            <ComboBox Grid.Column="1"
                                       VerticalAlignment="Center"
-                                      ToolTipService.InitialShowDelay="{StaticResource ToolTipInitialShowDelay}"
-                                      ToolTipService.ShowDuration="{StaticResource ToolTipShowDuration}"
-                                      IsChecked="{Binding UseAbsoluteResetTime}"
-                                      ToolTip="Show reset as absolute time (5-Hour as HH:mm, 7-Day as MM-dd) instead of a countdown" />
+                                      ItemsSource="{Binding TokenUnitOptions}"
+                                      SelectedItem="{Binding TokenUnit, UpdateSourceTrigger=PropertyChanged}"
+                                      Style="{StaticResource SettingsComboBoxStyle}" />
                         </Grid>
 
                         <!-- Appearance -->

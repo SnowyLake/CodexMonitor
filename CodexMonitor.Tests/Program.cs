@@ -438,8 +438,6 @@ internal static class Program
         AssertTrue(response.LimitResetCredits.Available, "reset credits should be available");
         AssertEqual(2, response.LimitResetCredits.AvailableCount, "reset credit count");
         AssertEqual(nearestExpiry.ToLocalTime().ToString("yyyy-MM-dd HH:mm"), response.LimitResetCredits.NearestExpiryLocal, "nearest local reset credit expiry");
-        AssertEqual(2, response.LimitResetCredits.ExpiryTimesLocal.Count, "reset credit expiry count");
-        AssertEqual(nearestExpiry.ToLocalTime().ToString("yyyy-MM-dd HH:mm"), response.LimitResetCredits.ExpiryTimesLocal[0], "first reset credit expiry");
         return Task.CompletedTask;
     }
 

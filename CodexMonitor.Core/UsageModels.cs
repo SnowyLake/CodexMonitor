@@ -150,9 +150,6 @@ public sealed class LimitResetCredits
 
     [JsonPropertyName("nearest_expiry_local")]
     public string NearestExpiryLocal { get; set; } = "N/A";
-
-    [JsonPropertyName("expiry_times_local")]
-    public List<string> ExpiryTimesLocal { get; set; } = [];
 }
 
 public sealed class UsageDisplay

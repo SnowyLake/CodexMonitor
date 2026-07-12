@@ -198,7 +198,7 @@ public sealed class CodexMonitorCollector
     private static LimitResetCredits BuildLimitResetCredits(JsonElement root, DateTimeOffset now)
     {
         int availableCount = Math.Max(0, GetInt32Property(root, "available_count", 0));
-        List<DateTimeOffset> expiryTimes = [];
+        DateTimeOffset? nearestExpiry = null;
         if (availableCount > 0 && root.TryGetProperty("credits", out JsonElement credits) && credits.ValueKind == JsonValueKind.Array)
         {
             foreach (JsonElement credit in credits.EnumerateArray())
@@ -210,23 +210,18 @@ public sealed class CodexMonitorCollector
                     continue;
                 }
 
-                expiryTimes.Add(expiry);
+                if (nearestExpiry == null || expiry < nearestExpiry)
+                {
+                    nearestExpiry = expiry;
+                }
             }
-        }
-
-        expiryTimes.Sort();
-        List<string> expiryTimesLocal = [];
-        foreach (DateTimeOffset expiry in expiryTimes)
-        {
-            expiryTimesLocal.Add(expiry.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture));
         }
 
         return new LimitResetCredits
         {
             Available = true,
             AvailableCount = availableCount,
-            NearestExpiryLocal = expiryTimesLocal.Count > 0 ? expiryTimesLocal[0] : "N/A",
-            ExpiryTimesLocal = expiryTimesLocal,
+            NearestExpiryLocal = nearestExpiry?.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) ?? "N/A",
         };
     }
 
