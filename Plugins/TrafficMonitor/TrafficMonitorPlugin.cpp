@@ -12,11 +12,11 @@
 
 namespace TrafficMonitorPlugin
 {
-constexpr wchar_t k_DefaultUsageUrl[] = L"http://127.0.0.1:17890/codex-monitor.txt";
-constexpr wchar_t k_ConfigFileName[] = L"CodexMonitor.ini";
-constexpr wchar_t k_ConfigSection[] = L"CodexMonitor";
+constexpr wchar_t k_DefaultUsageUrl[] = L"http://127.0.0.1:17890/codex-tray.txt";
+constexpr wchar_t k_ConfigFileName[] = L"CodexTray.ini";
+constexpr wchar_t k_ConfigSection[] = L"CodexTray";
 constexpr wchar_t k_ConfigUsageUrlKey[] = L"UsageUrl";
-constexpr wchar_t k_OptionsWindowClassName[] = L"CodexMonitorOptionsWindow";
+constexpr wchar_t k_OptionsWindowClassName[] = L"CodexTrayOptionsWindow";
 constexpr int k_OptionsUrlEditId = 1001;
 constexpr wchar_t k_FallbackValue[] = L"N/A";
 
@@ -243,7 +243,7 @@ void AcceptOptionsDialog(HWND window, OptionsDialogState* state)
     std::wstring url = TrimString(GetWindowTextString(state->editControl));
     if (!IsValidUsageUrl(url))
     {
-        MessageBoxW(window, L"Enter a valid HTTP or HTTPS backend URL.", L"Codex Monitor", MB_ICONWARNING | MB_OK);
+        MessageBoxW(window, L"Enter a valid HTTP or HTTPS backend URL.", L"CodexTray", MB_ICONWARNING | MB_OK);
         SetFocus(state->editControl);
         return;
     }
@@ -334,7 +334,7 @@ bool ShowUsageUrlOptionsDialog(HWND owner, std::wstring& url)
 
     if (!RegisterOptionsWindowClass())
     {
-        MessageBoxW(owner, L"Unable to open the Codex Monitor options dialog.", L"Codex Monitor", MB_ICONERROR | MB_OK);
+        MessageBoxW(owner, L"Unable to open the CodexTray options dialog.", L"CodexTray", MB_ICONERROR | MB_OK);
         return false;
     }
 
@@ -345,7 +345,7 @@ bool ShowUsageUrlOptionsDialog(HWND owner, std::wstring& url)
     HWND window = CreateWindowExW(
         WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT,
         k_OptionsWindowClassName,
-        L"Codex Monitor Options",
+        L"CodexTray Options",
         WS_CAPTION | WS_SYSMENU | WS_POPUP,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
@@ -357,7 +357,7 @@ bool ShowUsageUrlOptionsDialog(HWND owner, std::wstring& url)
         &state);
     if (window == nullptr)
     {
-        MessageBoxW(owner, L"Unable to open the Codex Monitor options dialog.", L"Codex Monitor", MB_ICONERROR | MB_OK);
+        MessageBoxW(owner, L"Unable to open the CodexTray options dialog.", L"CodexTray", MB_ICONERROR | MB_OK);
         return false;
     }
 
@@ -422,7 +422,7 @@ bool FetchUrl(const std::wstring& url, std::string& body)
         requestPath = L"/";
     }
 
-    WinHttpHandle session(WinHttpOpen(L"CodexMonitor/TrafficMonitorPlugin 1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0));
+    WinHttpHandle session(WinHttpOpen(L"CodexTray/TrafficMonitorPlugin 1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0));
     if (session == nullptr)
     {
         return false;
@@ -547,14 +547,14 @@ private:
     std::wstring m_Value;
 };
 
-class CodexMonitorPlugin final : public ITMPlugin
+class CodexTrayPlugin final : public ITMPlugin
 {
 public:
     /// Creates the TrafficMonitor plugin singleton.
-    CodexMonitorPlugin()
-        : m_FiveHourItem(L"Codex 5-Hour", L"CodexMonitor5H", L"Codex-5H", L"100% 4h59m"),
-          m_SevenDayItem(L"Codex 7-Day", L"CodexMonitor7D", L"Codex-7D", L"100% 6d23h"),
-          m_Tooltip(L"CodexMonitor waiting for data")
+    CodexTrayPlugin()
+        : m_FiveHourItem(L"Codex 5-Hour", L"CodexTray5H", L"Codex-5H", L"100% 4h59m"),
+          m_SevenDayItem(L"Codex 7-Day", L"CodexTray7D", L"Codex-7D", L"100% 6d23h"),
+          m_Tooltip(L"CodexTray waiting for data")
     {
     }
 
@@ -572,7 +572,7 @@ public:
         }
     }
 
-    /// Refreshes display data from the local CodexMonitor service.
+    /// Refreshes display data from the local CodexTray service.
     void DataRequired() override
     {
         UsageValues values;
@@ -580,7 +580,7 @@ public:
         {
             m_FiveHourItem.SetFallback();
             m_SevenDayItem.SetFallback();
-            m_Tooltip = L"CodexMonitor bridge unavailable";
+            m_Tooltip = L"CodexTray bridge unavailable";
             return;
         }
 
@@ -606,11 +606,11 @@ public:
 
         if (!WriteUsageUrl(updatedUrl))
         {
-            MessageBoxW(static_cast<HWND>(hParent), L"Unable to save Codex Monitor options.", L"Codex Monitor", MB_ICONERROR | MB_OK);
+            MessageBoxW(static_cast<HWND>(hParent), L"Unable to save CodexTray options.", L"CodexTray", MB_ICONERROR | MB_OK);
             return OR_OPTION_UNCHANGED;
         }
 
-        m_Tooltip = L"CodexMonitor backend URL updated";
+        m_Tooltip = L"CodexTray backend URL updated";
         return OR_OPTION_CHANGED;
     }
 
@@ -620,9 +620,9 @@ public:
         switch (index)
         {
         case TMI_NAME:
-            return L"Codex Monitor";
+            return L"CodexTray";
         case TMI_DESCRIPTION:
-            return L"Displays Codex 5-Hour and 7-Day quota from CodexMonitor.";
+            return L"Displays Codex 5-Hour and 7-Day quota from CodexTray.";
         case TMI_AUTHOR:
             return L"SnowyLake";
         case TMI_COPYRIGHT:
@@ -649,9 +649,9 @@ private:
 };
 
 /// Returns the plugin singleton instance.
-CodexMonitorPlugin& GetPluginInstance()
+CodexTrayPlugin& GetPluginInstance()
 {
-    static CodexMonitorPlugin plugin;
+    static CodexTrayPlugin plugin;
     return plugin;
 }
 }

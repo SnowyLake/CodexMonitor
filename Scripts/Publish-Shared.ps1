@@ -1,7 +1,7 @@
-$CodexMonitorRuntime = "win-x64"
-$CodexMonitorTargetFramework = "net9.0-windows"
+$CodexTrayRuntime = "win-x64"
+$CodexTrayTargetFramework = "net9.0-windows"
 
-function Invoke-CodexMonitorPublish {
+function Invoke-CodexTrayPublish {
     param(
         [Parameter(Mandatory = $true)]
         [string]$RepoRoot,
@@ -12,7 +12,7 @@ function Invoke-CodexMonitorPublish {
         [Parameter(Mandatory = $true)]
         [string]$OutputPath,
 
-        [string]$Title = "CodexMonitor publish started.",
+        [string]$Title = "CodexTray publish started.",
 
         [switch]$Clean
     )
@@ -27,7 +27,7 @@ function Invoke-CodexMonitorPublish {
 
     Push-Location $RepoRoot
     try {
-        dotnet publish $ProjectPath -c Release -f $CodexMonitorTargetFramework -r $CodexMonitorRuntime -p:PublishSingleFile=true -p:SelfContained=false -o $OutputPath
+        dotnet publish $ProjectPath -c Release -f $CodexTrayTargetFramework -r $CodexTrayRuntime -p:PublishSingleFile=true -p:SelfContained=false -o $OutputPath
         if ($LASTEXITCODE -ne 0) {
             throw "dotnet publish failed with exit code $LASTEXITCODE."
         }

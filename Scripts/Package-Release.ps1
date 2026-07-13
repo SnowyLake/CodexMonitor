@@ -10,10 +10,10 @@ Set-StrictMode -Version Latest
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptRoot
-$projectPath = Join-Path $repoRoot "CodexMonitor.App\CodexMonitor.App.csproj"
+$projectPath = Join-Path $repoRoot "CodexTray.App\CodexTray.App.csproj"
 $releaseBaseRoot = Join-Path $repoRoot "Builds\Release"
 $runtime = "win-x64"
-$appFileName = "CodexMonitor.exe"
+$appFileName = "CodexTray.exe"
 . (Join-Path $scriptRoot "Publish-Shared.ps1")
 
 function Get-NormalizedVersion {
@@ -36,8 +36,8 @@ function Get-NormalizedVersion {
 
 $normalizedVersion = Get-NormalizedVersion $Version
 $releaseRoot = Join-Path $releaseBaseRoot $normalizedVersion
-$packageName = "CodexMonitor-$normalizedVersion-$runtime.zip"
-$stagingDir = Join-Path $releaseRoot "CodexMonitor-$normalizedVersion-$runtime"
+$packageName = "CodexTray-$normalizedVersion-$runtime.zip"
+$stagingDir = Join-Path $releaseRoot "CodexTray-$normalizedVersion-$runtime"
 $packagePath = Join-Path $releaseRoot $packageName
 
 function Invoke-ReleasePublish {
@@ -50,7 +50,7 @@ function Invoke-ReleasePublish {
     Write-Host "Version: $normalizedVersion"
     Write-Host "Staging: $stagingDir"
 
-    Invoke-CodexMonitorPublish -RepoRoot $repoRoot -ProjectPath $projectPath -OutputPath $stagingDir -Title "Release package publish started."
+    Invoke-CodexTrayPublish -RepoRoot $repoRoot -ProjectPath $projectPath -OutputPath $stagingDir -Title "Release package publish started."
     $appPath = Join-Path $stagingDir $appFileName
     if (-not (Test-Path -LiteralPath $appPath)) {
         throw "Published executable not found: $appPath"
