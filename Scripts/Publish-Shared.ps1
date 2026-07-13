@@ -21,8 +21,10 @@ function Invoke-CodexTrayPublish {
     Write-Host "Project: $ProjectPath"
     Write-Host "Output:  $OutputPath"
     if ($Clean -and (Test-Path -LiteralPath $OutputPath)) {
-        Remove-PathWithRetry $OutputPath
-        Write-Host "Removed previous publish directory."
+        Get-ChildItem -LiteralPath $OutputPath -Force |
+            Where-Object Name -ne "settings.json" |
+            ForEach-Object { Remove-PathWithRetry $_.FullName }
+        Write-Host "Cleaned previous publish output and preserved settings.json."
     }
 
     Push-Location $RepoRoot

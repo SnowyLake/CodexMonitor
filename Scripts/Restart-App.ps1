@@ -7,11 +7,9 @@ Set-StrictMode -Version Latest
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptRoot
-$projectPath = Join-Path $repoRoot "CodexTray.App\CodexTray.App.csproj"
 $publishDir = Join-Path $repoRoot "Builds\Output\win-x64"
 $appProcessNames = @("CodexTray", "CodexTray.App")
 $appPath = Join-Path $publishDir "CodexTray.exe"
-. (Join-Path $scriptRoot "Publish-Shared.ps1")
 
 function Stop-RunningApp {
     $processes = foreach ($appProcessName in $appProcessNames) {
@@ -40,22 +38,7 @@ function Stop-RunningApp {
     }
 }
 
-function Remove-PreviousPublishDirectory {
-    if (Test-Path -LiteralPath $publishDir) {
-        Remove-PathWithRetry $publishDir
-        Write-Host "Removed previous publish directory."
-    }
-}
-
-function Invoke-AppPublish {
-    Invoke-CodexTrayPublish -RepoRoot $repoRoot -ProjectPath $projectPath -OutputPath $publishDir
-}
-
 function Start-PublishedApp {
-    if (-not (Test-Path -LiteralPath $appPath)) {
-        throw "Published executable not found: $appPath"
-    }
-
     $process = Start-Process -FilePath $appPath -WindowStyle Hidden -PassThru
     Write-Host ""
     Write-Host "Started CodexTray."
@@ -65,9 +48,11 @@ function Start-PublishedApp {
 
 $exitCode = 0
 try {
+    if (-not (Test-Path -LiteralPath $appPath)) {
+        throw "Published executable not found: $appPath"
+    }
+
     Stop-RunningApp
-    Remove-PreviousPublishDirectory
-    Invoke-AppPublish
     Start-PublishedApp
 }
 catch {
@@ -77,7 +62,11 @@ catch {
     $exitCode = 1
 }
 finally {
-    Wait-BeforeExit -NoPause:$NoPause
+    if (-not $NoPause) {
+        Write-Host ""
+        Write-Host "Press any key to close this window..."
+        [Console]::ReadKey($true) | Out-Null
+    }
 }
 
 exit $exitCode

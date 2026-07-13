@@ -74,13 +74,14 @@ Token Cost 是独立的本地统计: `TokenCostCollector` 读取 `~/.codex/sessi
 - 修改 Token Cost 解析或定价结构时, 同步检查 `Resources/model-pricing.json` 和对应测试.
 - 修改 WPF 布局或主题时, 检查是否需要更新 `Docs/showcase.png`.
 - 本地服务必须保持仅监听 `127.0.0.1`. 不在日志, HTTP 响应, 文档示例或插件配置中暴露 OAuth token.
-- `Scripts/Publish-App.ps1`, `Scripts/Restart-App.ps1` 和 `Scripts/Package-Release.ps1` 共享 `Scripts/Publish-Shared.ps1`. 发布参数或清理逻辑优先修改共享脚本.
+- `Scripts/Publish-App.ps1` 和 `Scripts/Package-Release.ps1` 共享 `Scripts/Publish-Shared.ps1`. 发布参数或清理逻辑优先修改共享脚本. `Scripts/Restart-App.ps1` 只重启当前发布输出中的程序, 不执行发布.
 
 ## 构建与输出
 
 - `bin` 和 `obj` 使用项目默认位置.
 - 不提交 `bin`, `obj`, `Builds` 或 `Plugins/TrafficMonitor/Builds` 下的生成文件.
 - App 发布为 `net9.0-windows`, `win-x64`, 单文件, framework-dependent 应用.
+- `Scripts/Publish-App.ps1` 清理已有发布输出时必须保留 `settings.json`.
 - `Resources` 和插件模板作为外部文件复制到发布目录.
 - 只有 `Plugins/TrafficMonitor/Builds/x64/Release/CodexTray.dll` 已存在时, App 发布才会复制 TrafficMonitor DLL.
 - `Directory.Build.targets` 排除 `Builds/**` 下的 `.cs`, 防止发布产物被 SDK 默认编译项重新纳入编译.
@@ -111,7 +112,7 @@ dotnet run --project .\CodexTray.Tests\CodexTray.Tests.csproj
 .\Scripts\Publish-App.ps1 -NoPause
 ```
 
-修改托盘应用并通过构建与测试后, 发布并重启预览程序:
+重启当前发布输出中的预览程序:
 
 ```powershell
 .\Scripts\Restart-App.ps1 -NoPause
