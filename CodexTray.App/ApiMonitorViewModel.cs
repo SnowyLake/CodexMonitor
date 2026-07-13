@@ -2,11 +2,15 @@ using CodexTray.Core;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using Media = System.Windows.Media;
 
 namespace CodexTray.App;
 
 internal sealed class ApiMonitorViewModel : INotifyPropertyChanged
 {
+    private static readonly Media.Brush s_GreenBrush = new Media.SolidColorBrush(Media.Color.FromRgb(26, 188, 137));
+    private static readonly Media.Brush s_RedBrush = new Media.SolidColorBrush(Media.Color.FromRgb(224, 91, 77));
+
     private string m_Name;
     private string m_Provider;
     private string m_BaseUrl;
@@ -16,6 +20,7 @@ internal sealed class ApiMonitorViewModel : INotifyPropertyChanged
     private string m_UsedDisplay = "N/A";
     private string m_PlanName = string.Empty;
     private string m_StatusText = "Waiting for refresh";
+    private Media.Brush m_StatusDotBrush = s_RedBrush;
     private bool m_IsEditing;
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -153,6 +158,12 @@ internal sealed class ApiMonitorViewModel : INotifyPropertyChanged
         private set => SetField(ref m_StatusText, value);
     }
 
+    public Media.Brush StatusDotBrush
+    {
+        get => m_StatusDotBrush;
+        private set => SetField(ref m_StatusDotBrush, value);
+    }
+
     /// <summary>
     /// Creates an editable API monitor view model.
     /// </summary>
@@ -195,6 +206,7 @@ internal sealed class ApiMonitorViewModel : INotifyPropertyChanged
         StatusText = result.Available
             ? $"Updated {result.UpdatedAt:HH:mm}"
             : result.Error;
+        StatusDotBrush = result.Available ? s_GreenBrush : s_RedBrush;
     }
 
     /// <summary>

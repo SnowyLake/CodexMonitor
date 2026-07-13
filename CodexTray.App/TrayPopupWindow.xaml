@@ -718,7 +718,7 @@
 
             </Grid>
 
-            <!-- ===================== API ===================== -->
+            <!-- ===================== APIs ===================== -->
             <Grid Grid.Row="0"
                   Visibility="{Binding IsApiVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <Grid.RowDefinitions>
@@ -732,18 +732,25 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="API"
+                        <TextBlock Text="APIs"
                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                    FontSize="26"
                                    FontWeight="Medium"
                                    VerticalAlignment="Center" />
-                        <Button Grid.Column="1"
-                                VerticalAlignment="Center"
-                                Command="{Binding RefreshCommand}"
-                                ToolTip="Refresh"
-                                Style="{StaticResource IconButtonStyle}">
-                            <TextBlock Style="{StaticResource RefreshSpinnerGlyphStyle}" />
-                        </Button>
+                        <StackPanel Grid.Column="1"
+                                    Orientation="Horizontal">
+                            <Button VerticalAlignment="Center"
+                                    Command="{Binding AddApiMonitorCommand}"
+                                    Content="&#xE710;"
+                                    ToolTip="Add API"
+                                    Style="{StaticResource IconButtonStyle}" />
+                            <Button VerticalAlignment="Center"
+                                    Command="{Binding RefreshCommand}"
+                                    ToolTip="Refresh"
+                                    Style="{StaticResource IconButtonStyle}">
+                                <TextBlock Style="{StaticResource RefreshSpinnerGlyphStyle}" />
+                            </Button>
+                        </StackPanel>
                     </Grid>
                     <TextBlock Margin="2,6,0,0"
                                Text="{Binding ApiMonitorStatusText}"
@@ -775,22 +782,61 @@
                                         <Grid>
                                             <StackPanel Visibility="{Binding IsEditing, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
                                                 <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto" />
+                                                        <RowDefinition Height="Auto" />
+                                                    </Grid.RowDefinitions>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*" />
                                                         <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="{Binding DisplayName}"
+                                                    <TextBlock Grid.Row="0"
+                                                               Text="{Binding DisplayName}"
                                                                VerticalAlignment="Center"
                                                                Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                                                FontSize="15"
                                                                FontWeight="SemiBold" />
-                                                    <Button Grid.Column="1"
-                                                            Width="30"
-                                                            Height="30"
-                                                            Command="{Binding ToggleEditingCommand}"
-                                                            Content="&#xE713;"
-                                                            ToolTip="Settings"
-                                                            Style="{StaticResource IconButtonStyle}" />
+                                                    <StackPanel Grid.Row="0"
+                                                                Grid.Column="1"
+                                                                VerticalAlignment="Center"
+                                                                Orientation="Horizontal">
+                                                        <Button Width="30"
+                                                                Height="30"
+                                                                Command="{Binding DataContext.MoveApiMonitorUpCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                                                                CommandParameter="{Binding}"
+                                                                Content="&#xE74A;"
+                                                                ToolTip="Move up"
+                                                                Style="{StaticResource IconButtonStyle}" />
+                                                        <Button Width="30"
+                                                                Height="30"
+                                                                Command="{Binding DataContext.MoveApiMonitorDownCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                                                                CommandParameter="{Binding}"
+                                                                Content="&#xE74B;"
+                                                                ToolTip="Move down"
+                                                                Style="{StaticResource IconButtonStyle}" />
+                                                        <Button Width="30"
+                                                                Height="30"
+                                                                Command="{Binding ToggleEditingCommand}"
+                                                                Content="&#xE713;"
+                                                                ToolTip="Settings"
+                                                                Style="{StaticResource IconButtonStyle}" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Row="1"
+                                                                Grid.ColumnSpan="2"
+                                                                Margin="0,4,0,0"
+                                                                Orientation="Horizontal">
+                                                        <Ellipse Width="7"
+                                                                 Height="7"
+                                                                 Margin="0,0,6,0"
+                                                                 VerticalAlignment="Center"
+                                                                 Fill="{Binding StatusDotBrush}" />
+                                                        <TextBlock Text="{Binding StatusText}"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   VerticalAlignment="Center"
+                                                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                                                   FontSize="11"
+                                                                   ToolTip="{Binding StatusText}" />
+                                                    </StackPanel>
                                                 </Grid>
 
                                                 <Grid Margin="0,14,0,0">
@@ -826,12 +872,6 @@
                                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                                            FontSize="12"
                                                            Visibility="{Binding HasPlanName, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                                <TextBlock Margin="0,5,0,0"
-                                                           Text="{Binding StatusText}"
-                                                           TextTrimming="CharacterEllipsis"
-                                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                                           FontSize="11"
-                                                           ToolTip="{Binding StatusText}" />
                                             </StackPanel>
 
                                             <StackPanel Visibility="{Binding IsEditing, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -845,13 +885,22 @@
                                                                Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                                                FontSize="15"
                                                                FontWeight="SemiBold" />
-                                                    <Button Grid.Column="1"
-                                                            Width="30"
-                                                            Height="30"
-                                                            Command="{Binding ToggleEditingCommand}"
-                                                            Content="&#xE73E;"
-                                                            ToolTip="Done"
-                                                            Style="{StaticResource IconButtonStyle}" />
+                                                    <StackPanel Grid.Column="1"
+                                                                Orientation="Horizontal">
+                                                        <Button Width="30"
+                                                                Height="30"
+                                                                Command="{Binding DataContext.RemoveApiMonitorCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                                                                CommandParameter="{Binding}"
+                                                                Content="&#xE74D;"
+                                                                ToolTip="Delete"
+                                                                Style="{StaticResource IconButtonStyle}" />
+                                                        <Button Width="30"
+                                                                Height="30"
+                                                                Command="{Binding ToggleEditingCommand}"
+                                                                Content="&#xE73E;"
+                                                                ToolTip="Save"
+                                                                Style="{StaticResource IconButtonStyle}" />
+                                                    </StackPanel>
                                                 </Grid>
 
                                                 <Grid Margin="0,12,0,0">
@@ -897,42 +946,12 @@
                                                              Style="{StaticResource SettingsTextBoxStyle}" />
                                                 </StackPanel>
 
-                                                <StackPanel Margin="0,10,0,0"
-                                                            Orientation="Horizontal"
-                                                            HorizontalAlignment="Right">
-                                                    <Button Width="30"
-                                                            Height="30"
-                                                            Command="{Binding DataContext.MoveApiMonitorUpCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
-                                                            CommandParameter="{Binding}"
-                                                            Content="&#xE74A;"
-                                                            ToolTip="Move up"
-                                                            Style="{StaticResource IconButtonStyle}" />
-                                                    <Button Width="30"
-                                                            Height="30"
-                                                            Command="{Binding DataContext.MoveApiMonitorDownCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
-                                                            CommandParameter="{Binding}"
-                                                            Content="&#xE74B;"
-                                                            ToolTip="Move down"
-                                                            Style="{StaticResource IconButtonStyle}" />
-                                                    <Button Width="30"
-                                                            Height="30"
-                                                            Command="{Binding DataContext.RemoveApiMonitorCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
-                                                            CommandParameter="{Binding}"
-                                                            Content="&#xE74D;"
-                                                            ToolTip="Delete"
-                                                            Style="{StaticResource IconButtonStyle}" />
-                                                </StackPanel>
                                             </StackPanel>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-
-                        <Button Height="36"
-                                Margin="0,0,0,4"
-                                Command="{Binding AddApiMonitorCommand}"
-                                Content="Add API" />
                     </StackPanel>
                 </ScrollViewer>
             </Grid>
@@ -1333,7 +1352,7 @@
                             Style="{StaticResource HomeTabButtonStyle}" />
                     <Button Command="{Binding ShowApiCommand}"
                             Content="&#xE774;"
-                            ToolTip="API"
+                            ToolTip="APIs"
                             Style="{StaticResource ApiTabButtonStyle}" />
                     <Button Command="{Binding ShowSettingsCommand}"
                             Content="&#xE713;"
