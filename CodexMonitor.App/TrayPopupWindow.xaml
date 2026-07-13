@@ -511,13 +511,13 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Limit Reset Credits"
+                            <TextBlock Text="Reset Credits"
                                        VerticalAlignment="Center"
                                        Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                        FontSize="13.5"
                                        FontWeight="Normal" />
                             <TextBlock Grid.Column="1"
-                                       Text="{Binding LimitResetCreditsDisplay}"
+                                       Text="{Binding ResetCreditsDisplay}"
                                        HorizontalAlignment="Right"
                                        VerticalAlignment="Center"
                                        Foreground="{DynamicResource TextFillColorPrimaryBrush}"
@@ -527,7 +527,7 @@
                         <StackPanel Orientation="Horizontal"
                                     HorizontalAlignment="Right"
                                     Margin="0,5,0,0">
-                            <TextBlock Text="{Binding LimitResetCreditsResetTime}"
+                            <TextBlock Text="{Binding ResetCreditsResetTime}"
                                        VerticalAlignment="Center"
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                        FontSize="12" />

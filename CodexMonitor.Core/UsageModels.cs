@@ -97,8 +97,8 @@ public sealed class UsageResponse
     [JsonPropertyName("limits")]
     public UsageLimits Limits { get; set; } = new();
 
-    [JsonPropertyName("limit_reset_credits")]
-    public LimitResetCredits LimitResetCredits { get; set; } = new();
+    [JsonPropertyName("reset_credits")]
+    public ResetCredits ResetCredits { get; set; } = new();
 
     [JsonPropertyName("display")]
     public UsageDisplay Display { get; set; } = new();
@@ -140,7 +140,7 @@ public sealed class UsageLimit
     public string ResetLabel { get; set; } = string.Empty;
 }
 
-public sealed class LimitResetCredits
+public sealed class ResetCredits
 {
     [JsonPropertyName("available")]
     public bool Available { get; set; }

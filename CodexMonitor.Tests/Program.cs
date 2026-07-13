@@ -21,7 +21,7 @@ internal static class Program
         await RunAsync("returns unavailable response without OAuth credentials", TestEmptyResponseAsync);
         await RunAsync("collects official Codex quota", TestOfficialQuotaAsync);
         await RunAsync("classifies a lone weekly quota by window duration", TestLoneWeeklyQuotaAsync);
-        await RunAsync("collects Codex reset credits", TestLimitResetCreditsAsync);
+        await RunAsync("collects Codex reset credits", TestResetCreditsAsync);
         await RunAsync("omits reset suffix when disabled", TestDisplayWithoutResetSuffixAsync);
         await RunAsync("uses absolute reset time when enabled", TestAbsoluteResetTimeAsync);
         await RunAsync("serves health and usage over HTTP", TestHttpServerAsync);
@@ -415,7 +415,7 @@ internal static class Program
     /// <summary>
     /// Tests reset credit parsing and local expiry conversion.
     /// </summary>
-    private static Task TestLimitResetCreditsAsync()
+    private static Task TestResetCreditsAsync()
     {
         using TempDirectory temp = new();
         DateTimeOffset now = new(2026, 7, 1, 12, 0, 0, TimeSpan.FromHours(8));
@@ -435,9 +435,9 @@ internal static class Program
 
         UsageResponse response = collector.Collect(temp.Path);
 
-        AssertTrue(response.LimitResetCredits.Available, "reset credits should be available");
-        AssertEqual(2, response.LimitResetCredits.AvailableCount, "reset credit count");
-        AssertEqual(nearestExpiry.ToLocalTime().ToString("yyyy-MM-dd HH:mm"), response.LimitResetCredits.NearestExpiryLocal, "nearest local reset credit expiry");
+        AssertTrue(response.ResetCredits.Available, "reset credits should be available");
+        AssertEqual(2, response.ResetCredits.AvailableCount, "reset credit count");
+        AssertEqual(nearestExpiry.ToLocalTime().ToString("yyyy-MM-dd HH:mm"), response.ResetCredits.NearestExpiryLocal, "nearest local reset credit expiry");
         return Task.CompletedTask;
     }
 

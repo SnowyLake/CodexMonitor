@@ -54,8 +54,8 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
     private string m_UpdatedAtDisplay = "Waiting for first refresh";
     private string m_ServiceStatus = "Service: starting";
     private string m_SourceDisplay = "Source: unavailable";
-    private string m_LimitResetCreditsDisplay = "N/A";
-    private string m_LimitResetCreditsResetTime = "N/A";
+    private string m_ResetCreditsDisplay = "N/A";
+    private string m_ResetCreditsResetTime = "N/A";
     private string m_LiteMonitorDir = string.Empty;
     private string m_TrafficMonitorDir = string.Empty;
     private string m_PortText = CodexMonitorDefaults.Port.ToString(CultureInfo.InvariantCulture);
@@ -191,16 +191,16 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
         private set => SetField(ref m_SourceDisplay, value);
     }
 
-    public string LimitResetCreditsDisplay
+    public string ResetCreditsDisplay
     {
-        get => m_LimitResetCreditsDisplay;
-        private set => SetField(ref m_LimitResetCreditsDisplay, value);
+        get => m_ResetCreditsDisplay;
+        private set => SetField(ref m_ResetCreditsDisplay, value);
     }
 
-    public string LimitResetCreditsResetTime
+    public string ResetCreditsResetTime
     {
-        get => m_LimitResetCreditsResetTime;
-        private set => SetField(ref m_LimitResetCreditsResetTime, value);
+        get => m_ResetCreditsResetTime;
+        private set => SetField(ref m_ResetCreditsResetTime, value);
     }
 
     public string LiteMonitorDir
@@ -694,7 +694,7 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
             UpdatedAtDisplay = FormatUpdatedAt(null);
             FiveHourQuota.UpdateUnavailable();
             SevenDayQuota.UpdateUnavailable();
-            UpdateLimitResetCredits(null);
+            UpdateResetCredits(null);
             return;
         }
 
@@ -706,7 +706,7 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
             UpdatedAtDisplay = $"Error{FormatResponseError(response)}";
             FiveHourQuota.UpdateUnavailable();
             SevenDayQuota.UpdateUnavailable();
-            UpdateLimitResetCredits(null);
+            UpdateResetCredits(null);
             return;
         }
 
@@ -716,23 +716,23 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
         UpdatedAtDisplay = FormatUpdatedAt(response.UpdatedAt);
         FiveHourQuota.Update(response.Limits.FiveHour);
         SevenDayQuota.Update(response.Limits.SevenDay);
-        UpdateLimitResetCredits(response.LimitResetCredits);
+        UpdateResetCredits(response.ResetCredits);
     }
 
     /// <summary>
     /// Updates the reset credit display values.
     /// </summary>
-    private void UpdateLimitResetCredits(LimitResetCredits? resetCredits)
+    private void UpdateResetCredits(ResetCredits? resetCredits)
     {
         if (resetCredits?.Available == true)
         {
-            LimitResetCreditsDisplay = $"{resetCredits.AvailableCount} Available";
-            LimitResetCreditsResetTime = resetCredits.NearestExpiryLocal;
+            ResetCreditsDisplay = $"{resetCredits.AvailableCount} Available";
+            ResetCreditsResetTime = resetCredits.NearestExpiryLocal;
         }
         else
         {
-            LimitResetCreditsDisplay = "N/A";
-            LimitResetCreditsResetTime = "N/A";
+            ResetCreditsDisplay = "N/A";
+            ResetCreditsResetTime = "N/A";
         }
     }
 

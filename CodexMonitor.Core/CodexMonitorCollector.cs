@@ -94,7 +94,7 @@ public sealed class CodexMonitorCollector
             UsageResponse usage = BuildOfficialResponse(codexDirectory, authPath, document.RootElement, now, showResetTimeInPlugins, useAbsoluteResetTime);
             if (usage.Available)
             {
-                usage.LimitResetCredits = CollectLimitResetCredits(credentials, now);
+                usage.ResetCredits = CollectResetCredits(credentials, now);
             }
 
             return usage;
@@ -162,11 +162,11 @@ public sealed class CodexMonitorCollector
     /// <summary>
     /// Collects reset credit availability without affecting the main quota response.
     /// </summary>
-    private LimitResetCredits CollectLimitResetCredits(CodexCredentials credentials, DateTimeOffset now)
+    private ResetCredits CollectResetCredits(CodexCredentials credentials, DateTimeOffset now)
     {
         if (string.IsNullOrWhiteSpace(credentials.AccountId))
         {
-            return new LimitResetCredits();
+            return new ResetCredits();
         }
 
         using HttpRequestMessage request = new(HttpMethod.Get, k_ResetCreditsEndpoint);
@@ -180,22 +180,22 @@ public sealed class CodexMonitorCollector
             using HttpResponseMessage response = m_HttpClient.Send(request);
             if (!response.IsSuccessStatusCode)
             {
-                return new LimitResetCredits();
+                return new ResetCredits();
             }
 
             using JsonDocument document = JsonDocument.Parse(response.Content.ReadAsStringAsync().GetAwaiter().GetResult());
-            return BuildLimitResetCredits(document.RootElement, now);
+            return BuildResetCredits(document.RootElement, now);
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException or IOException)
         {
-            return new LimitResetCredits();
+            return new ResetCredits();
         }
     }
 
     /// <summary>
     /// Builds reset credit data from the official credit endpoint JSON.
     /// </summary>
-    private static LimitResetCredits BuildLimitResetCredits(JsonElement root, DateTimeOffset now)
+    private static ResetCredits BuildResetCredits(JsonElement root, DateTimeOffset now)
     {
         int availableCount = Math.Max(0, GetInt32Property(root, "available_count", 0));
         DateTimeOffset? nearestExpiry = null;
@@ -217,7 +217,7 @@ public sealed class CodexMonitorCollector
             }
         }
 
-        return new LimitResetCredits
+        return new ResetCredits
         {
             Available = true,
             AvailableCount = availableCount,
