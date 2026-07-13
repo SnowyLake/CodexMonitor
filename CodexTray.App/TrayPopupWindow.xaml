@@ -863,8 +863,7 @@
                                                                Margin="8,0,0,0"
                                                                Text="{Binding BalanceDisplay}"
                                                                Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                                                               FontSize="13"
-                                                               FontWeight="SemiBold" />
+                                                               FontSize="13" />
                                                     <StackPanel Grid.Column="2"
                                                                 Orientation="Horizontal"
                                                                 Visibility="{Binding IsNewApi, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -874,8 +873,7 @@
                                                         <TextBlock Margin="8,0,0,0"
                                                                    Text="{Binding UsedDisplay}"
                                                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                                                                   FontSize="13"
-                                                                   FontWeight="SemiBold" />
+                                                                   FontSize="13" />
                                                     </StackPanel>
                                                 </Grid>
                                             </StackPanel>
@@ -898,38 +896,35 @@
                                                                 Command="{Binding DataContext.RemoveApiMonitorCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
                                                                 CommandParameter="{Binding}"
                                                                 Content="&#xE74D;"
-                                                                ToolTip="Delete"
                                                                 Style="{StaticResource IconButtonStyle}" />
                                                         <Button Width="30"
                                                                 Height="30"
                                                                 Command="{Binding ToggleEditingCommand}"
                                                                 Content="&#xE73E;"
-                                                                ToolTip="Save"
                                                                 Style="{StaticResource IconButtonStyle}" />
                                                     </StackPanel>
                                                 </Grid>
 
-                                                <Grid Margin="0,12,0,0">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="104" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBox Margin="0,0,8,0"
-                                                             Text="{Binding Name}"
-                                                             ToolTip="Display name"
-                                                             Style="{StaticResource SettingsTextBoxStyle}" />
-                                                    <ComboBox Grid.Column="1"
-                                                              ItemsSource="{Binding ProviderOptions}"
-                                                              SelectedItem="{Binding Provider}"
-                                                              Style="{StaticResource SettingsComboBoxStyle}" />
-                                                </Grid>
+                                                <TextBlock Margin="0,12,0,5"
+                                                           Text="Provider"
+                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                           FontSize="12" />
+                                                <ComboBox ItemsSource="{Binding ProviderOptions}"
+                                                          SelectedItem="{Binding Provider}"
+                                                          Style="{StaticResource SettingsComboBoxStyle}" />
+
+                                                <TextBlock Margin="0,10,0,5"
+                                                           Text="Display name"
+                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                           FontSize="12" />
+                                                <TextBox Text="{Binding Name}"
+                                                         Style="{StaticResource SettingsTextBoxStyle}" />
 
                                                 <TextBlock Margin="0,12,0,5"
                                                            Text="Base URL"
                                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                                            FontSize="12" />
                                                 <TextBox Text="{Binding BaseUrl}"
-                                                         ToolTip="API service root URL"
                                                          Style="{StaticResource SettingsTextBoxStyle}" />
 
                                                 <TextBlock Margin="0,10,0,5"
@@ -948,7 +943,6 @@
                                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                                                FontSize="12" />
                                                     <TextBox Text="{Binding UserId}"
-                                                             ToolTip="NewAPI user ID"
                                                              Style="{StaticResource SettingsTextBoxStyle}" />
                                                 </StackPanel>
 
