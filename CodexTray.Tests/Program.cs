@@ -75,7 +75,7 @@ internal static class Program
         AssertEqual(88, response.Limits.FiveHour.RemainingPercent, "five hour remaining percent");
         AssertEqual(34, response.Limits.SevenDay.UsedPercent, "seven day used percent");
         AssertEqual(66, response.Limits.SevenDay.RemainingPercent, "seven day remaining percent");
-        AssertEqual("chatgpt", response.PlanType, "plan type");
+        AssertEqual("pro", response.PlanType, "plan type");
         AssertEqual("88% 2h05m", response.Display.Codex5H, "five hour display");
         AssertEqual("66% 3d04h", response.Display.Codex7D, "seven day display");
         return Task.CompletedTask;
@@ -174,6 +174,7 @@ internal static class Program
 
         AssertTrue(response.Available, "official response should be available");
         AssertEqual("official_api", response.Source, "official source");
+        AssertEqual("unknown", response.PlanType, "missing plan type");
         AssertEqual(75, response.Limits.FiveHour.RemainingPercent, "official five hour remaining percent");
         AssertEqual(60, response.Limits.SevenDay.RemainingPercent, "official seven day remaining percent");
         AssertEqual("75% 1h15m", response.Display.Codex5H, "official five hour display");
@@ -646,6 +647,7 @@ internal static class Program
 
         string body = JsonSerializer.Serialize(new
         {
+            plan_type = "pro",
             rate_limit = new
             {
                 primary_window = new

@@ -141,6 +141,7 @@ public sealed class CodexTrayCollector
         }
 
         UsageDisplay display = BuildDisplay(fiveHour, sevenDay, showResetTimeInPlugins);
+        string planType = GetStringProperty(root, "plan_type", "unknown");
         return new UsageResponse
         {
             Available = true,
@@ -148,7 +149,7 @@ public sealed class CodexTrayCollector
             CodexDir = codexDirectory,
             SourceFile = authPath,
             Source = "official_api",
-            PlanType = "chatgpt",
+            PlanType = planType,
             UpdatedAt = now.ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture),
             Limits = new UsageLimits
             {

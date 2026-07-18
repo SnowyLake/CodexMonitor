@@ -56,7 +56,7 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
 
     private readonly AppSettings m_Settings;
     private string m_CurrentPage = k_HomePageName;
-    private string m_PlanDisplay = "None";
+    private string m_PlanDisplay = "UNKNOWN";
     private Media.Brush m_PlanBadgeBrush = s_PlanBadgeInactiveBrush;
     private Media.Brush m_StatusDotBrush = s_RedBrush;
     private string m_UpdatedAtDisplay = "Waiting for first refresh";
@@ -813,7 +813,7 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
 
         if (response == null)
         {
-            PlanDisplay = "None";
+            PlanDisplay = "UNKNOWN";
             PlanBadgeBrush = s_PlanBadgeInactiveBrush;
             StatusDotBrush = s_RedBrush;
             UpdatedAtDisplay = FormatUpdatedAt(null);
@@ -825,7 +825,7 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
 
         if (!response.Available)
         {
-            PlanDisplay = "None";
+            PlanDisplay = "UNKNOWN";
             PlanBadgeBrush = s_PlanBadgeInactiveBrush;
             StatusDotBrush = s_RedBrush;
             UpdatedAtDisplay = $"Error{FormatResponseError(response)}";
@@ -1319,16 +1319,16 @@ internal sealed class TrayPopupViewModel : INotifyPropertyChanged
     /// </summary>
     private static string FormatPlan(string? planType)
     {
-        string normalized = (planType ?? string.Empty).Trim().Replace("-", "_", StringComparison.Ordinal).ToLowerInvariant();
+        string normalized = (planType ?? string.Empty).Trim().Replace("-", "_", StringComparison.Ordinal).Replace(" ", "_", StringComparison.Ordinal).ToLowerInvariant();
         return normalized switch
         {
-            "free" => "Free",
-            "go" => "Go",
-            "plus" => "Plus",
-            "pro" or "pro_5x" or "pro5x" => "Pro5x",
-            "pro_20x" or "pro20x" => "Pro20x",
-            "chatgpt" => "Plus",
-            _ => "Unknown",
+            "free" => "FREE",
+            "go" => "GO",
+            "plus" => "PLUS",
+            "pro_lite" or "prolite" or "pro_5x" or "pro5x" => "PRO",
+            "pro" or "pro_20x" or "pro20x" => "PRO MAX",
+            "chatgpt" => "PLUS",
+            _ => "UNKNOWN",
         };
     }
 
