@@ -786,8 +786,8 @@
                                     <Border Margin="0,0,0,12"
                                             Padding="14"
                                             CornerRadius="10"
-                                            Background="{DynamicResource ControlFillColorDefaultBrush}"
-                                            BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                            Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                                             BorderThickness="1">
                                         <Grid>
                                             <StackPanel Visibility="{Binding IsEditing, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
