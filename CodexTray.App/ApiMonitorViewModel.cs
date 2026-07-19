@@ -35,8 +35,8 @@ internal sealed class ApiMonitorViewModel : INotifyPropertyChanged
     public string[] ProviderOptions { get; } =
     [
         ApiMonitorSettings.DeepSeekProvider,
-        ApiMonitorSettings.NewApiProvider,
         ApiMonitorSettings.GrokProvider,
+        ApiMonitorSettings.NewApiProvider,
     ];
 
     public string[] GrokOAuthSourceOptions { get; } =
