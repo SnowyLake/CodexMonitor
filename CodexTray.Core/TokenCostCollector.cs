@@ -73,10 +73,12 @@ public sealed class TokenCostCollector
         PeriodAccumulator sevenDayPeriod = new();
         PeriodAccumulator thirtyDayPeriod = new();
         PeriodAccumulator totalPeriod = new();
+        string[] sessionFiles = EnumerateSessionFiles(root).ToArray();
+        Dictionary<string, string> rolloutIndex = BuildRolloutIndex(sessionFiles);
 
-        foreach (string path in EnumerateSessionFiles(root))
+        foreach (string path in sessionFiles)
         {
-            CollectFile(path, today, weekStart, monthStart, pricing, todayPeriod, yesterdayPeriod, weekPeriod, monthPeriod, sevenDayPeriod, thirtyDayPeriod, totalPeriod);
+            CollectFile(path, today, weekStart, monthStart, pricing, rolloutIndex, todayPeriod, yesterdayPeriod, weekPeriod, monthPeriod, sevenDayPeriod, thirtyDayPeriod, totalPeriod);
         }
 
         return new TokenCostStatistics
@@ -134,6 +136,7 @@ public sealed class TokenCostCollector
         DateTime weekStart,
         DateTime monthStart,
         Dictionary<string, ModelPricing> pricing,
+        Dictionary<string, string> rolloutIndex,
         PeriodAccumulator todayPeriod,
         PeriodAccumulator yesterdayPeriod,
         PeriodAccumulator weekPeriod,
@@ -144,7 +147,9 @@ public sealed class TokenCostCollector
     {
         string model = "unknown";
         TokenCounts? previous = null;
-        bool replayingHistory = false;
+        IReadOnlyList<TokenUsageSignature>? parentSignatures = LoadParentSignatures(path, rolloutIndex);
+        int parentOffset = 0;
+        bool matchingReplay = parentSignatures?.Count > 0;
         foreach (string line in ReadLinesShared(path))
         {
             if (!line.Contains("\"session_meta\"", StringComparison.Ordinal)
@@ -162,23 +167,6 @@ public sealed class TokenCostCollector
                 JsonElement root = document.RootElement;
                 string type = GetString(root, "type");
                 JsonElement payload = GetObject(root, "payload");
-                if (type == "session_meta")
-                {
-                    string id = GetString(payload, "id");
-                    string sessionId = GetString(payload, "session_id");
-                    replayingHistory = GetString(payload, "forked_from_id").Length > 0
-                        || payload.TryGetProperty("source", out JsonElement source) && source.ValueKind == JsonValueKind.Object && source.TryGetProperty("subagent", out _)
-                        || sessionId.Length > 0 && sessionId != id;
-                    continue;
-                }
-
-                if (type.StartsWith("inter_agent_communication", StringComparison.Ordinal)
-                    || type == "event_msg" && GetString(payload, "type") == "thread_settings_applied")
-                {
-                    replayingHistory = false;
-                    continue;
-                }
-
                 if (type == "turn_context")
                 {
                     string candidate = GetString(payload, "model");
@@ -203,10 +191,29 @@ public sealed class TokenCostCollector
                 string eventModel = GetString(info, "model");
                 eventModel = eventModel.Length > 0 ? eventModel : GetString(info, "model_name");
                 model = eventModel.Length > 0 ? NormalizeModel(eventModel) : model;
+                bool isReplay = false;
+                if (matchingReplay && TryParseTokenSignature(info, out TokenUsageSignature signature))
+                {
+                    int match = FindSignature(parentSignatures!, parentOffset, signature);
+                    if (match >= 0)
+                    {
+                        parentOffset = match + 1;
+                        isReplay = true;
+                    }
+                    else
+                    {
+                        matchingReplay = false;
+                    }
+                }
+                else
+                {
+                    matchingReplay = false;
+                }
+
                 TokenCounts current = ParseCounts(usage);
                 TokenCounts delta = isCumulative && previous != null ? current.Subtract(previous.Value) : current;
                 previous = isCumulative ? current : previous;
-                if (replayingHistory)
+                if (isReplay)
                 {
                     continue;
                 }
@@ -266,6 +273,133 @@ public sealed class TokenCostCollector
                 // Codex can leave a partially written final JSONL line while a session is active.
             }
         }
+    }
+
+    /// <summary>
+    /// Indexes rollout files by the thread UUID at the end of each filename.
+    /// </summary>
+    private static Dictionary<string, string> BuildRolloutIndex(IEnumerable<string> paths)
+    {
+        Dictionary<string, string> result = new(StringComparer.OrdinalIgnoreCase);
+        foreach (string path in paths)
+        {
+            string name = Path.GetFileNameWithoutExtension(path);
+            if (name.Length >= 36 && Guid.TryParse(name[^36..], out Guid threadId))
+            {
+                result.TryAdd(threadId.ToString(), path);
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Loads token signatures from the explicit parent rollout before the child starts.
+    /// </summary>
+    private static IReadOnlyList<TokenUsageSignature>? LoadParentSignatures(string path, Dictionary<string, string> rolloutIndex)
+    {
+        ReplayContext? context = ReadReplayContext(path);
+        if (context == null || !rolloutIndex.TryGetValue(context.Value.ParentId, out string? parentPath))
+        {
+            return null;
+        }
+
+        List<TokenUsageSignature> result = [];
+        foreach (string line in ReadLinesShared(parentPath))
+        {
+            if (!line.Contains("\"token_count\"", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            try
+            {
+                using JsonDocument document = JsonDocument.Parse(line);
+                JsonElement root = document.RootElement;
+                JsonElement payload = GetObject(root, "payload");
+                if (GetString(root, "type") != "event_msg"
+                    || GetString(payload, "type") != "token_count"
+                    || !DateTimeOffset.TryParse(GetString(root, "timestamp"), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset timestamp)
+                    || timestamp > context.Value.Cutoff
+                    || !TryParseTokenSignature(GetObject(payload, "info"), out TokenUsageSignature signature))
+                {
+                    continue;
+                }
+
+                result.Add(signature);
+            }
+            catch (JsonException)
+            {
+                // Active parent rollouts can also end with a partially written JSONL line.
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Reads the explicit parent identity and fork timestamp from a rollout.
+    /// </summary>
+    private static ReplayContext? ReadReplayContext(string path)
+    {
+        foreach (string line in ReadLinesShared(path))
+        {
+            if (!line.Contains("\"session_meta\"", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            try
+            {
+                using JsonDocument document = JsonDocument.Parse(line);
+                JsonElement root = document.RootElement;
+                JsonElement payload = GetObject(root, "payload");
+                if (GetString(root, "type") != "session_meta"
+                    || !DateTimeOffset.TryParse(GetString(root, "timestamp"), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset cutoff))
+                {
+                    return null;
+                }
+
+                string forkedFrom = GetString(payload, "forked_from_id");
+                string spawnedFrom = GetString(GetObject(GetObject(GetObject(payload, "source"), "subagent"), "thread_spawn"), "parent_thread_id");
+                if (forkedFrom.Length > 0 && spawnedFrom.Length > 0 && forkedFrom != spawnedFrom)
+                {
+                    return null;
+                }
+
+                string parentId = forkedFrom.Length > 0 ? forkedFrom : spawnedFrom;
+                if (parentId.Length == 0)
+                {
+                    string id = GetString(payload, "id");
+                    string sessionId = GetString(payload, "session_id");
+                    parentId = sessionId.Length > 0 && sessionId != id ? sessionId : string.Empty;
+                }
+
+                return parentId.Length > 0 ? new ReplayContext(parentId, cutoff) : null;
+            }
+            catch (JsonException)
+            {
+                return null;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Finds a child token signature in the remaining ordered parent sequence.
+    /// </summary>
+    private static int FindSignature(IReadOnlyList<TokenUsageSignature> signatures, int start, TokenUsageSignature target)
+    {
+        for (int index = start; index < signatures.Count; index++)
+        {
+            if (signatures[index] == target)
+            {
+                return index;
+            }
+        }
+
+        return -1;
     }
 
     /// <summary>
@@ -332,6 +466,33 @@ public sealed class TokenCostCollector
     }
 
     /// <summary>
+    /// Parses the complete token counters used to identify replayed parent events.
+    /// </summary>
+    private static bool TryParseTokenSignature(JsonElement info, out TokenUsageSignature signature)
+    {
+        TokenCounterSignature? total = ParseCounterSignature(info, "total_token_usage");
+        TokenCounterSignature? last = ParseCounterSignature(info, "last_token_usage");
+        signature = new TokenUsageSignature(total, last);
+        return total != null || last != null;
+    }
+
+    /// <summary>
+    /// Parses one optional token counter object without replacing absent fields with zero.
+    /// </summary>
+    private static TokenCounterSignature? ParseCounterSignature(JsonElement value, string name)
+    {
+        JsonElement counters = GetObject(value, name);
+        return counters.ValueKind == JsonValueKind.Object
+            ? new TokenCounterSignature(
+                GetNullableInt64(counters, "input_tokens"),
+                GetNullableInt64(counters, "cached_input_tokens") ?? GetNullableInt64(counters, "cache_read_input_tokens"),
+                GetNullableInt64(counters, "output_tokens"),
+                GetNullableInt64(counters, "reasoning_output_tokens"),
+                GetNullableInt64(counters, "total_tokens"))
+            : null;
+    }
+
+    /// <summary>
     /// Gets an object property or an empty element.
     /// </summary>
     private static JsonElement GetObject(JsonElement value, string name)
@@ -355,7 +516,21 @@ public sealed class TokenCostCollector
         return value.ValueKind == JsonValueKind.Object && value.TryGetProperty(name, out JsonElement result) && result.TryGetInt64(out long number) ? number : fallback;
     }
 
+    /// <summary>
+    /// Gets an optional integer property without conflating a missing field with zero.
+    /// </summary>
+    private static long? GetNullableInt64(JsonElement value, string name)
+    {
+        return value.ValueKind == JsonValueKind.Object && value.TryGetProperty(name, out JsonElement result) && result.TryGetInt64(out long number) ? number : null;
+    }
+
     private readonly record struct ModelPricing(decimal Input, decimal CachedInput, decimal Output);
+
+    private readonly record struct ReplayContext(string ParentId, DateTimeOffset Cutoff);
+
+    private readonly record struct TokenCounterSignature(long? Input, long? CachedInput, long? Output, long? ReasoningOutput, long? Total);
+
+    private readonly record struct TokenUsageSignature(TokenCounterSignature? Total, TokenCounterSignature? Last);
 
     private sealed class PeriodAccumulator
     {

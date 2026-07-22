@@ -35,6 +35,7 @@ internal static class Program
         await RunAsync("parses Grok billing protobuf", TestGrokUsageCollectorAsync);
         await RunAsync("summarizes API refresh statuses", TestApiUsageSummaryAsync);
         await RunAsync("collects exact Codex token cost", TestTokenCostCollectorAsync);
+        await RunAsync("counts live subagent usage without replaying parent history", TestSubagentTokenCostAsync);
         Console.WriteLine(s_Failures == 0 ? "All C# tests passed." : $"C# tests failed: {s_Failures}");
         return s_Failures == 0 ? 0 : 1;
     }
@@ -634,6 +635,48 @@ internal static class Program
         AssertEqual(0.00774m, statistics.ThirtyDay.CostUsd, "thirty day API-equivalent cost");
         AssertEqual(3660L, statistics.Total.TotalTokens, "historical total tokens");
         AssertEqual(0.00794m, statistics.Total.CostUsd, "historical API-equivalent cost");
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Verifies that only token events matching an explicit parent rollout are treated as replay history.
+    /// </summary>
+    private static Task TestSubagentTokenCostAsync()
+    {
+        using TempDirectory temp = new();
+        string pricingPath = Path.Combine(temp.Path, "pricing.json");
+        File.WriteAllText(pricingPath, "{\"gpt-test\":{\"input\":2,\"cachedInput\":0.2,\"output\":10}}");
+        string sessions = Path.Combine(temp.Path, "sessions", "2026", "07", "11");
+        Directory.CreateDirectory(sessions);
+        const string parentId = "11111111-1111-1111-1111-111111111111";
+        const string legacyChildId = "22222222-2222-2222-2222-222222222222";
+        const string spawnedChildId = "33333333-3333-3333-3333-333333333333";
+        File.WriteAllLines(Path.Combine(sessions, $"rollout-{parentId}.jsonl"),
+        [
+            $"{{\"timestamp\":\"2026-07-11T08:00:00+08:00\",\"type\":\"session_meta\",\"payload\":{{\"id\":\"{parentId}\",\"source\":\"cli\"}}}}",
+            "{\"type\":\"turn_context\",\"payload\":{\"model\":\"gpt-test\"}}",
+            "{\"timestamp\":\"2026-07-11T09:00:00+08:00\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":1000,\"cached_input_tokens\":400,\"output_tokens\":100}}}}",
+            "{\"timestamp\":\"2026-07-11T10:00:00+08:00\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":2000,\"cached_input_tokens\":800,\"output_tokens\":200}}}}",
+        ]);
+        File.WriteAllLines(Path.Combine(sessions, $"rollout-{legacyChildId}.jsonl"),
+        [
+            $"{{\"timestamp\":\"2026-07-11T10:15:00+08:00\",\"type\":\"session_meta\",\"payload\":{{\"id\":\"{legacyChildId}\",\"source\":{{\"subagent\":{{\"other\":\"review\"}}}}}}}}",
+            "{\"type\":\"turn_context\",\"payload\":{\"model\":\"gpt-test\"}}",
+            "{\"timestamp\":\"2026-07-11T10:20:00+08:00\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":300,\"cached_input_tokens\":100,\"output_tokens\":30}}}}",
+        ]);
+        File.WriteAllLines(Path.Combine(sessions, $"rollout-{spawnedChildId}.jsonl"),
+        [
+            $"{{\"timestamp\":\"2026-07-11T10:30:00+08:00\",\"type\":\"session_meta\",\"payload\":{{\"id\":\"{spawnedChildId}\",\"source\":{{\"subagent\":{{\"thread_spawn\":{{\"parent_thread_id\":\"{parentId}\"}}}}}}}}}}",
+            "{\"type\":\"turn_context\",\"payload\":{\"model\":\"gpt-test\"}}",
+            "{\"timestamp\":\"2026-07-11T09:00:00+08:00\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":1000,\"cached_input_tokens\":400,\"output_tokens\":100}}}}",
+            "{\"timestamp\":\"2026-07-11T10:00:00+08:00\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":2000,\"cached_input_tokens\":800,\"output_tokens\":200}}}}",
+            "{\"timestamp\":\"2026-07-11T11:00:00+08:00\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":2300,\"cached_input_tokens\":900,\"output_tokens\":230}}}}",
+        ]);
+
+        TokenCostCollector collector = new(pricingPath);
+        TokenCostSummary total = collector.Collect(temp.Path, new DateTimeOffset(2026, 7, 11, 12, 0, 0, TimeSpan.FromHours(8))).Total;
+        AssertEqual(2860L, total.TotalTokens, "subagent total excludes only matching replay prefix");
+        AssertEqual(0.006m, total.CostUsd, "subagent total cost");
         return Task.CompletedTask;
     }
 
